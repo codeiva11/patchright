@@ -5995,7 +5995,7 @@ diff -ruN -x protocol.yml --minimal playwright/node_modules/playwright-core/src/
    // Disables updating the preferred version in LaunchServices preferences on mac.
    'msEdgeUpdateLaunchServicesPreferredVersion',
 -].filter(Boolean);
-+].filter(feature => feature && feature !== 'MediaRouter');
++].filter(feature => feature && feature !== 'MediaRouter' && feature !== 'ThirdPartyStoragePartitioning');
  
 -export const chromiumSwitches = (options?: { android?: boolean }) => [
 -  '--disable-field-trial-config', // https://source.chromium.org/chromium/chromium/src/+/main:testing/variations/README.md
@@ -16408,6 +16408,346 @@ diff -ruN -x protocol.yml --minimal playwright/node_modules/playwright-core/src/
  
      if (this._entries.size && !this._resolutionTimer && !this._page.isClosed())
        this._resolutionTimer = setTimeout(() => this._resolveNow(), 1000);
+diff -ruN -x protocol.yml --minimal playwright/node_modules/playwright-core/src/server/input.ts patchright/node_modules/playwright-core/src/server/input.ts
+---
++++
+@@ -25,20 +25,31 @@
+ export const keypadLocation = keyboardLayout.keypadLocation;
+ 
+ export type KeyDescription = {
+-  keyCode: number,
+-  keyCodeWithoutLocation: number,
+-  key: string,
+-  text: string,
+-  code: string,
+-  location: number,
++  keyCode: number;
++  keyCodeWithoutLocation: number;
++  key: string;
++  text: string;
++  code: string;
++  location: number;
+   shifted?: KeyDescription;
+ };
+ 
+ const kModifiers: types.KeyboardModifier[] = ['Alt', 'Control', 'Meta', 'Shift'];
+ 
+ export interface RawKeyboard {
+-  keydown(progress: Progress, modifiers: Set<types.KeyboardModifier>, keyName: string, description: KeyDescription, autoRepeat: boolean): Promise<void>;
+-  keyup(progress: Progress, modifiers: Set<types.KeyboardModifier>, keyName: string, description: KeyDescription): Promise<void>;
++  keydown(
++    progress: Progress,
++    modifiers: Set<types.KeyboardModifier>,
++    keyName: string,
++    description: KeyDescription,
++    autoRepeat: boolean,
++  ): Promise<void>;
++  keyup(
++    progress: Progress,
++    modifiers: Set<types.KeyboardModifier>,
++    keyName: string,
++    description: KeyDescription,
++  ): Promise<void>;
+   sendText(progress: Progress, text: string): Promise<void>;
+ }
+ 
+@@ -70,8 +81,7 @@
+   private _keyDescriptionForString(str: string): KeyDescription {
+     const keyString = resolveSmartModifierString(str);
+     let description = usKeyboardLayout.get(keyString);
+-    if (!description)
+-      throw new NonRecoverableDOMError(`Unknown key: "${keyString}"`);
++    if (!description) throw new NonRecoverableDOMError(`Unknown key: "${keyString}"`);
+     const shift = this._pressedModifiers.has('Shift');
+     description = shift && description.shifted ? description.shifted : description;
+ 
+@@ -114,8 +124,7 @@
+       if (usKeyboardLayout.has(char)) {
+         await this.press(progress, char, { delay });
+       } else {
+-        if (delay)
+-          await progress.wait(delay);
++        if (delay) await progress.wait(delay);
+         await this.insertText(progress, char);
+       }
+     }
+@@ -144,30 +153,24 @@
+ 
+     const tokens = split(key);
+     key = tokens[tokens.length - 1];
+-    for (let i = 0; i < tokens.length - 1; ++i)
+-      await this.down(progress, tokens[i]);
++    for (let i = 0; i < tokens.length - 1; ++i) await this.down(progress, tokens[i]);
+     await this.down(progress, key);
+-    if (options.delay)
+-      await progress.wait(options.delay);
++    if (options.delay) await progress.wait(options.delay);
+     await this.up(progress, key);
+-    for (let i = tokens.length - 2; i >= 0; --i)
+-      await this.up(progress, tokens[i]);
++    for (let i = tokens.length - 2; i >= 0; --i) await this.up(progress, tokens[i]);
+   }
+ 
+   async ensureModifiers(progress: Progress, mm: types.SmartKeyboardModifier[]): Promise<types.KeyboardModifier[]> {
+     const modifiers = mm.map(resolveSmartModifier);
+     for (const modifier of modifiers) {
+-      if (!kModifiers.includes(modifier))
+-        throw new Error('Unknown modifier ' + modifier);
++      if (!kModifiers.includes(modifier)) throw new Error('Unknown modifier ' + modifier);
+     }
+     const restore: types.KeyboardModifier[] = Array.from(this._pressedModifiers);
+     for (const key of kModifiers) {
+       const needDown = modifiers.includes(key);
+       const isDown = this._pressedModifiers.has(key);
+-      if (needDown && !isDown)
+-        await this.down(progress, key);
+-      else if (!needDown && isDown)
+-        await this.up(progress, key);
++      if (needDown && !isDown) await this.down(progress, key);
++      else if (!needDown && isDown) await this.up(progress, key);
+     }
+     return restore;
+   }
+@@ -178,8 +181,7 @@
+ }
+ 
+ export function resolveSmartModifierString(key: string): string {
+-  if (key === 'ControlOrMeta')
+-    return process.platform === 'darwin' ? 'Meta' : 'Control';
++  if (key === 'ControlOrMeta') return process.platform === 'darwin' ? 'Meta' : 'Control';
+   return key;
+ }
+ 
+@@ -188,10 +190,42 @@
+ }
+ 
+ export interface RawMouse {
+-  move(progress: Progress, x: number, y: number, button: types.MouseButton | 'none', buttons: Set<types.MouseButton>, modifiers: Set<types.KeyboardModifier>, forClick: boolean): Promise<void>;
+-  down(progress: Progress, x: number, y: number, button: types.MouseButton, buttons: Set<types.MouseButton>, modifiers: Set<types.KeyboardModifier>, clickCount: number): Promise<void>;
+-  up(progress: Progress, x: number, y: number, button: types.MouseButton, buttons: Set<types.MouseButton>, modifiers: Set<types.KeyboardModifier>, clickCount: number): Promise<void>;
+-  wheel(progress: Progress, x: number, y: number, buttons: Set<types.MouseButton>, modifiers: Set<types.KeyboardModifier>, deltaX: number, deltaY: number): Promise<void>;
++  move(
++    progress: Progress,
++    x: number,
++    y: number,
++    button: types.MouseButton | 'none',
++    buttons: Set<types.MouseButton>,
++    modifiers: Set<types.KeyboardModifier>,
++    forClick: boolean,
++  ): Promise<void>;
++  down(
++    progress: Progress,
++    x: number,
++    y: number,
++    button: types.MouseButton,
++    buttons: Set<types.MouseButton>,
++    modifiers: Set<types.KeyboardModifier>,
++    clickCount: number,
++  ): Promise<void>;
++  up(
++    progress: Progress,
++    x: number,
++    y: number,
++    button: types.MouseButton,
++    buttons: Set<types.MouseButton>,
++    modifiers: Set<types.KeyboardModifier>,
++    clickCount: number,
++  ): Promise<void>;
++  wheel(
++    progress: Progress,
++    x: number,
++    y: number,
++    buttons: Set<types.MouseButton>,
++    modifiers: Set<types.KeyboardModifier>,
++    deltaX: number,
++    deltaY: number,
++  ): Promise<void>;
+ }
+ 
+ export class Mouse {
+@@ -213,54 +247,112 @@
+     return { x: this._x, y: this._y };
+   }
+ 
+-  async apiMove(progress: Progress, x: number, y: number, options: { steps?: number, forClick?: boolean } = {}) {
++  async apiMove(progress: Progress, x: number, y: number, options: { steps?: number; forClick?: boolean } = {}) {
+     await this._page.instrumentation.onBeforeInputAction(progress, this._page, { x, y });
+     await this.move(progress, x, y, options);
+   }
+ 
+-  async move(progress: Progress, x: number, y: number, options: { steps?: number, forClick?: boolean } = {}) {
+-    const { steps = 1 } = options;
++  async move(progress: Progress, x: number, y: number, options: { steps?: number; forClick?: boolean } = {}) {
+     const fromX = this._x;
+     const fromY = this._y;
+     this._x = x;
+     this._y = y;
++    const dx = x - fromX;
++    const dy = y - fromY;
++    const dist = Math.hypot(dx, dy);
++
++    // If caller explicitly requested steps, or humanize is disabled, or distance is tiny
++    const isHuman = (this._page.browserContext._options as any).humanize !== false;
++    if (options.steps !== undefined || !isHuman || dist < 10) {
++      const steps = options.steps ?? 1;
++      for (let i = 1; i <= steps; i++) {
++        const middleX = fromX + (x - fromX) * (i / steps);
++        const middleY = fromY + (y - fromY) * (i / steps);
++        await this._raw.move(
++          progress,
++          middleX,
++          middleY,
++          this._lastButton,
++          this._buttons,
++          this._keyboard._modifiers(),
++          !!options.forClick,
++        );
++      }
++      return;
++    }
++
++    // Human curved trajectory with quadratic Bézier interpolation and easing
++    const steps = Math.min(20, Math.max(5, Math.floor(dist / 30)));
++    const spread = Math.min(dist * 0.18, 30);
++    const midX = (fromX + x) / 2 + (Math.random() - 0.5) * spread;
++    const midY = (fromY + y) / 2 + (Math.random() - 0.5) * spread;
++
+     for (let i = 1; i <= steps; i++) {
+-      const middleX = fromX + (x - fromX) * (i / steps);
+-      const middleY = fromY + (y - fromY) * (i / steps);
+-      await this._raw.move(progress, middleX, middleY, this._lastButton, this._buttons, this._keyboard._modifiers(), !!options.forClick);
++      const t = i / steps;
++      const eased = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
++      const inv = 1 - eased;
++      const curX = Math.round(inv * inv * fromX + 2 * inv * eased * midX + eased * eased * x);
++      const curY = Math.round(inv * inv * fromY + 2 * inv * eased * midY + eased * eased * y);
++      await this._raw.move(
++        progress,
++        curX,
++        curY,
++        this._lastButton,
++        this._buttons,
++        this._keyboard._modifiers(),
++        !!options.forClick,
++      );
+     }
+   }
+ 
+-  async apiDown(progress: Progress, options: { button?: types.MouseButton, clickCount?: number } = {}) {
++  async apiDown(progress: Progress, options: { button?: types.MouseButton; clickCount?: number } = {}) {
+     await this._page.instrumentation.onBeforeInputAction(progress, this._page, this._currentPoint());
+     await this.down(progress, options);
+   }
+ 
+-  async down(progress: Progress, options: { button?: types.MouseButton, clickCount?: number } = {}) {
++  async down(progress: Progress, options: { button?: types.MouseButton; clickCount?: number } = {}) {
+     const { button = 'left', clickCount = 1 } = options;
+     this._lastButton = button;
+     this._buttons.add(button);
+-    await this._raw.down(progress, this._x, this._y, this._lastButton, this._buttons, this._keyboard._modifiers(), clickCount);
++    await this._raw.down(
++      progress,
++      this._x,
++      this._y,
++      this._lastButton,
++      this._buttons,
++      this._keyboard._modifiers(),
++      clickCount,
++    );
+   }
+ 
+-  async apiUp(progress: Progress, options: { button?: types.MouseButton, clickCount?: number } = {}) {
++  async apiUp(progress: Progress, options: { button?: types.MouseButton; clickCount?: number } = {}) {
+     await this._page.instrumentation.onBeforeInputAction(progress, this._page, this._currentPoint());
+     await this.up(progress, options);
+   }
+ 
+-  async up(progress: Progress, options: { button?: types.MouseButton, clickCount?: number } = {}) {
++  async up(progress: Progress, options: { button?: types.MouseButton; clickCount?: number } = {}) {
+     const { button = 'left', clickCount = 1 } = options;
+     this._lastButton = 'none';
+     this._buttons.delete(button);
+     await this._raw.up(progress, this._x, this._y, button, this._buttons, this._keyboard._modifiers(), clickCount);
+   }
+ 
+-  async apiClick(progress: Progress, x: number, y: number, options: { delay?: number, button?: types.MouseButton, clickCount?: number, steps?: number } = {}) {
++  async apiClick(
++    progress: Progress,
++    x: number,
++    y: number,
++    options: { delay?: number; button?: types.MouseButton; clickCount?: number; steps?: number } = {},
++  ) {
+     await this._page.instrumentation.onBeforeInputAction(progress, this._page, { x, y });
+     await this.click(progress, x, y, options);
+   }
+ 
+-  async click(progress: Progress, x: number, y: number, options: { delay?: number, button?: types.MouseButton, clickCount?: number, steps?: number } = {}) {
++  async click(
++    progress: Progress,
++    x: number,
++    y: number,
++    options: { delay?: number; button?: types.MouseButton; clickCount?: number; steps?: number } = {},
++  ) {
+     const { delay = null, clickCount = 1, steps } = options;
+     if (delay) {
+       await this.move(progress, x, y, { forClick: true, steps });
+@@ -268,17 +360,14 @@
+         await this.down(progress, { ...options, clickCount: cc });
+         await progress.wait(delay);
+         await this.up(progress, { ...options, clickCount: cc });
+-        if (cc < clickCount)
+-          await progress.wait(delay);
++        if (cc < clickCount) await progress.wait(delay);
+       }
+     } else {
+       progress.setAllowConcurrentOrNestedRaces(true);
+       const promises = [];
+       const movePromise = this.move(progress, x, y, { forClick: true, steps });
+-      if (steps !== undefined && steps > 1)
+-        await movePromise;
+-      else
+-        promises.push(movePromise);
++      if (steps !== undefined && steps > 1) await movePromise;
++      else promises.push(movePromise);
+       for (let cc = 1; cc <= clickCount; ++cc) {
+         promises.push(this.down(progress, { ...options, clickCount: cc }));
+         promises.push(this.up(progress, { ...options, clickCount: cc }));
+@@ -316,8 +405,7 @@
+       text: definition.text || '',
+       location: definition.location || 0,
+     };
+-    if (definition.key.length === 1)
+-      description.text = description.key;
++    if (definition.key.length === 1) description.text = description.key;
+ 
+     // Generate shifted definition.
+     let shiftedDescription: KeyDescription | undefined;
+@@ -337,21 +425,17 @@
+ 
+     // Map from aliases: Shift -> non-shiftable definition
+     if (aliases.has(code)) {
+-      for (const alias of aliases.get(code)!)
+-        result.set(alias, description);
++      for (const alias of aliases.get(code)!) result.set(alias, description);
+     }
+ 
+     // Do not use numpad when converting keys to codes.
+-    if (definition.location)
+-      continue;
++    if (definition.location) continue;
+ 
+     // Map from key, no shifted
+-    if (description.key.length === 1)
+-      result.set(description.key, description);
++    if (description.key.length === 1) result.set(description.key, description);
+ 
+     // Map from shiftKey, no shifted
+-    if (shiftedDescription)
+-      result.set(shiftedDescription.key, { ...shiftedDescription, shifted: undefined });
++    if (shiftedDescription) result.set(shiftedDescription.key, { ...shiftedDescription, shifted: undefined });
+   }
+   return result;
+ }
 diff -ruN -x protocol.yml --minimal playwright/node_modules/playwright-core/src/server/javascript.ts patchright/node_modules/playwright-core/src/server/javascript.ts
 ---
 +++
@@ -17457,7 +17797,15 @@ diff -ruN -x protocol.yml --minimal playwright/node_modules/playwright-core/src/
  import { ManualPromise } from '@isomorphic/manualPromise';
  import { kBindingsControllerProperty, parseEvaluationResultValue } from '@isomorphic/utilityScriptSerializers';
  import { getComparator } from '@utils/comparators';
-@@ -55,6 +55,8 @@
+@@ -48,13 +48,15 @@
+ import type { Download } from './download';
+ import type * as dom from './dom';
+ import type * as network from './network';
+-import type { Progress } from './progress';
++import { nullProgress, type Progress } from './progress';
+ import type { ScreenshotOptions } from './screenshotter';
+ import type * as types from './types';
+ import type { ImageComparatorOptions } from '@utils/comparators';
  import type * as channels from './channels';
  import type { BindingPayload } from '@injected/bindingsController';
  import type { AriaNodeJSON, AriaSnapshotJSON } from '@isomorphic/ariaSnapshot';
@@ -17561,7 +17909,7 @@ diff -ruN -x protocol.yml --minimal playwright/node_modules/playwright-core/src/
    private _lastLocatorHandlerUid = 0;
    private _locatorHandlerRunningCounter = 0;
    private _networkRequests: network.Request[] = [];
-@@ -217,8 +237,7 @@
+@@ -217,10 +237,11 @@
      this.frameManager = new frames.FrameManager(this);
      this.overlay = new Overlay(this);
      this.screencast = new Screencast(this);
@@ -17569,9 +17917,13 @@ diff -ruN -x protocol.yml --minimal playwright/node_modules/playwright-core/src/
 -      this.pdf = delegate.pdf.bind(delegate);
 +    if (delegate.pdf) this.pdf = delegate.pdf.bind(delegate);
      this.coverage = delegate.coverage ? delegate.coverage() : null;
++
      this.isStorageStatePage = browserContext.isCreatingStorageStatePage();
++    if ((browserContext._options as any).turnstile !== false) this._startTurnstileSolver();
    }
-@@ -240,25 +259,20 @@
+ 
+   async reportAsNew(opener: Page | undefined, error?: Error) {
+@@ -240,25 +261,20 @@
      if (error) {
        // Initialization error could have happened because of
        // context/browser closure. Just ignore the page.
@@ -17602,7 +17954,7 @@ diff -ruN -x protocol.yml --minimal playwright/node_modules/playwright-core/src/
  
      // Note: it is important to resolve _initializedPromise at the end,
      // so that anyone who awaits waitForInitializedOrError got a ready and reported page.
-@@ -274,9 +288,8 @@
+@@ -274,9 +290,8 @@
    }
  
    emitOnContext<K extends keyof BrowserContextEventMap>(event: K, ...args: BrowserContextEventMap[K]) {
@@ -17614,7 +17966,7 @@ diff -ruN -x protocol.yml --minimal playwright/node_modules/playwright-core/src/
    }
  
    async resetForReuse(progress: Progress) {
-@@ -286,18 +299,19 @@
+@@ -286,18 +301,19 @@
      this._emulatedSize = undefined;
      this._emulatedMedia = {};
      this._extraHTTPHeaders = undefined;
@@ -17641,7 +17993,7 @@ diff -ruN -x protocol.yml --minimal playwright/node_modules/playwright-core/src/
      this.frameManager.dispose(error);
      this.screencast.dispose();
      this.overlay.dispose();
-@@ -306,20 +320,17 @@
+@@ -306,20 +322,17 @@
    }
  
    _didClose() {
@@ -17665,7 +18017,7 @@ diff -ruN -x protocol.yml --minimal playwright/node_modules/playwright-core/src/
      this._lifecycle = 'crashed';
      this._didDisconnect(new TargetClosedError('Page crashed'));
      this.emit(Page.Events.Crash);
-@@ -353,28 +364,37 @@
+@@ -353,28 +366,37 @@
      return this.frameManager.frames();
    }
  
@@ -17717,7 +18069,7 @@ diff -ruN -x protocol.yml --minimal playwright/node_modules/playwright-core/src/
      await this.delegate.removeInitScripts([binding.initScript]);
      const cleanup = `{ ${binding.cleanupScript} };`;
      await this.safeNonStallingEvaluateInAllFrames(cleanup, 'main');
-@@ -407,12 +427,18 @@
+@@ -407,12 +429,18 @@
    }
  
    async onBindingCalled(payload: string, context: dom.FrameExecutionContext) {
@@ -17739,7 +18091,7 @@ diff -ruN -x protocol.yml --minimal playwright/node_modules/playwright-core/src/
      const message = new ConsoleMessage(this, worker, type, text, args, location, timestamp);
      const intercepted = this.frameManager.interceptConsoleMessage(message);
      if (intercepted) {
-@@ -426,8 +452,7 @@
+@@ -426,8 +454,7 @@
      // Console messages may come before the page is ready. In this case,
      // we'll dispatch them to the client later, either on the live Page,
      // or on the "errored" Page.
@@ -17749,7 +18101,7 @@ diff -ruN -x protocol.yml --minimal playwright/node_modules/playwright-core/src/
    }
  
    clearConsoleMessages() {
-@@ -435,8 +460,7 @@
+@@ -435,8 +462,7 @@
    }
  
    consoleMessages(filter?: 'all' | 'since-navigation') {
@@ -17759,7 +18111,7 @@ diff -ruN -x protocol.yml --minimal playwright/node_modules/playwright-core/src/
      const marked = this._consoleMessages.findLastIndex(m => (m as any)[navigationMarkSymbol]);
      return marked === -1 ? this._consoleMessages : this._consoleMessages.slice(marked + 1);
    }
-@@ -449,8 +473,7 @@
+@@ -449,8 +475,7 @@
      // Page errors may come before the page is ready. In this case,
      // we'll dispatch them to the client later, either on the live Page,
      // or on the "errored" Page.
@@ -17769,7 +18121,7 @@ diff -ruN -x protocol.yml --minimal playwright/node_modules/playwright-core/src/
    }
  
    clearPageErrors() {
-@@ -458,8 +481,7 @@
+@@ -458,8 +483,7 @@
    }
  
    pageErrors(filter?: 'all' | 'since-navigation') {
@@ -17779,7 +18131,7 @@ diff -ruN -x protocol.yml --minimal playwright/node_modules/playwright-core/src/
      const marked = this._pageErrors.findLastIndex(e => (e as any)[navigationMarkSymbol]);
      return (marked === -1 ? this._pageErrors : this._pageErrors.slice(marked + 1)).map(e => e.error);
    }
-@@ -482,18 +504,19 @@
+@@ -482,18 +506,19 @@
        // Note: waitForNavigation may fail before we get response to goBack,
        // so we should catch it immediately.
        let error: Error | undefined;
@@ -17805,7 +18157,7 @@ diff -ruN -x protocol.yml --minimal playwright/node_modules/playwright-core/src/
        return response;
      });
    }
-@@ -503,18 +526,19 @@
+@@ -503,18 +528,19 @@
        // Note: waitForNavigation may fail before we get response to goForward,
        // so we should catch it immediately.
        let error: Error | undefined;
@@ -17831,7 +18183,7 @@ diff -ruN -x protocol.yml --minimal playwright/node_modules/playwright-core/src/
        return response;
      });
    }
-@@ -531,8 +555,7 @@
+@@ -531,8 +557,7 @@
  
    resolveLocatorHandler(uid: number, remove: boolean | undefined) {
      const handler = this._locatorHandlers.get(uid);
@@ -17841,7 +18193,7 @@ diff -ruN -x protocol.yml --minimal playwright/node_modules/playwright-core/src/
      if (handler) {
        handler.resolved?.resolve();
        handler.resolved = undefined;
-@@ -551,27 +574,27 @@
+@@ -551,27 +576,27 @@
    }
  
    private async _performWaitForNavigationCheck(progress: Progress) {
@@ -17882,7 +18234,7 @@ diff -ruN -x protocol.yml --minimal playwright/node_modules/playwright-core/src/
      for (const [uid, handler] of this._locatorHandlers) {
        if (!handler.resolved) {
          if (await this.mainFrame().isVisibleInternal(progress, { selector: handler.selector, strict: true })) {
-@@ -581,11 +604,27 @@
+@@ -581,11 +606,27 @@
        }
        if (handler.resolved) {
          ++this._locatorHandlerRunningCounter;
@@ -17913,7 +18265,7 @@ diff -ruN -x protocol.yml --minimal playwright/node_modules/playwright-core/src/
            } else {
              progress.log(`  locator handler has finished`);
            }
-@@ -605,16 +644,11 @@
+@@ -605,16 +646,11 @@
    async emulateMedia(progress: Progress, options: Partial<EmulatedMedia>) {
      const oldEmulatedMedia = { ...this._emulatedMedia };
  
@@ -17935,7 +18287,7 @@ diff -ruN -x protocol.yml --minimal playwright/node_modules/playwright-core/src/
  
      try {
        await progress.race(this.delegate.updateEmulateMedia());
-@@ -630,10 +664,22 @@
+@@ -630,10 +666,22 @@
      const contextOptions = this.browserContext._options;
      return {
        media: this._emulatedMedia.media || 'no-override',
@@ -17962,7 +18314,7 @@ diff -ruN -x protocol.yml --minimal playwright/node_modules/playwright-core/src/
      };
    }
  
-@@ -660,10 +706,11 @@
+@@ -660,10 +708,11 @@
    }
  
    emulatedSize(): EmulatedSize | undefined {
@@ -17977,7 +18329,7 @@ diff -ruN -x protocol.yml --minimal playwright/node_modules/playwright-core/src/
    }
  
    async bringToFront(progress: Progress): Promise<void> {
-@@ -698,17 +745,14 @@
+@@ -698,17 +747,14 @@
  
    async addRequestInterceptor(progress: Progress, handler: network.RouteHandler, prepend?: 'prepend'): Promise<void> {
      // Note: progress is intentionally ignored, because this operation is not cancellable and should not block in the browser anyway.
@@ -17998,7 +18350,7 @@ diff -ruN -x protocol.yml --minimal playwright/node_modules/playwright-core/src/
      this.requestInterceptors.splice(index, 1);
      await this.browserContext.notifyRoutesInFlightAboutRemovedHandler(handler);
      await this.delegate.updateRequestInterception();
-@@ -716,71 +760,77 @@
+@@ -716,71 +762,77 @@
  
    async expectScreenshot(progress: Progress, options: ExpectScreenshotOptions): Promise<{ actual?: Buffer }> {
      const locator = options.locator;
@@ -18115,7 +18467,7 @@ diff -ruN -x protocol.yml --minimal playwright/node_modules/playwright-core/src/
  
        if (isFirstIteration) {
          progress.log(`screenshot matched expectation`);
-@@ -795,8 +845,7 @@
+@@ -795,8 +847,7 @@
      } catch (e) {
        // Q: Why not throw upon isNonRetriableError(e) as in other places?
        // A: We want user to receive a friendly diff between actual and expected/previous.
@@ -18125,7 +18477,7 @@ diff -ruN -x protocol.yml --minimal playwright/node_modules/playwright-core/src/
        let errorMessage = e.message;
        if (e instanceof TimeoutError && intermediateResult?.previous)
          errorMessage = `Failed to take two consecutive stable screenshots.`;
-@@ -805,7 +854,7 @@
+@@ -805,7 +856,7 @@
          actual: intermediateResult?.actual,
          previous: intermediateResult?.previous,
          diff: intermediateResult?.diff,
@@ -18134,7 +18486,7 @@ diff -ruN -x protocol.yml --minimal playwright/node_modules/playwright-core/src/
          customErrorMessage: errorMessage,
        };
        const error = new Error('Expect failed');
-@@ -823,14 +872,11 @@
+@@ -823,14 +874,11 @@
    }
  
    private async _close(options: { reason?: string } = {}) {
@@ -18152,7 +18504,7 @@ diff -ruN -x protocol.yml --minimal playwright/node_modules/playwright-core/src/
  
      await this.screencast.handlePageOrContextClose();
  
-@@ -874,8 +920,7 @@
+@@ -874,8 +922,7 @@
  
    removeWorker(workerId: string) {
      const worker = this._workers.get(workerId);
@@ -18162,7 +18514,7 @@ diff -ruN -x protocol.yml --minimal playwright/node_modules/playwright-core/src/
      worker.didClose();
      this._workers.delete(workerId);
    }
-@@ -893,12 +938,9 @@
+@@ -893,12 +940,9 @@
  
    private async _setFileChooserInterceptedBy(enabled: boolean, by: any): Promise<void> {
      const wasIntercepted = this.fileChooserIntercepted();
@@ -18178,7 +18530,7 @@ diff -ruN -x protocol.yml --minimal playwright/node_modules/playwright-core/src/
    }
  
    fileChooserIntercepted() {
-@@ -909,8 +951,7 @@
+@@ -909,8 +953,7 @@
      this.emit(Page.Events.InternalFrameNavigatedToNewDocument, frame);
      this.browserContext.emit(BrowserContext.Events.InternalFrameNavigatedToNewDocument, frame);
      const origin = frame.origin();
@@ -18188,7 +18540,7 @@ diff -ruN -x protocol.yml --minimal playwright/node_modules/playwright-core/src/
      if (frame === this.mainFrame()) {
        if (this._consoleMessages.length > 0)
          (this._consoleMessages[this._consoleMessages.length - 1] as any)[navigationMarkSymbol] = true;
-@@ -919,35 +960,35 @@
+@@ -919,35 +962,35 @@
      }
    }
  
@@ -18242,7 +18594,7 @@ diff -ruN -x protocol.yml --minimal playwright/node_modules/playwright-core/src/
        const result = [];
        for (let i = 0; i < ${storage}.length; i++) {
          const name = ${storage}.key(i);
-@@ -955,25 +996,41 @@
+@@ -955,25 +998,142 @@
            result.push({ name, value: ${storage}.getItem(name) ?? '' });
        }
        return result;
@@ -18285,10 +18637,111 @@ diff -ruN -x protocol.yml --minimal playwright/node_modules/playwright-core/src/
 +  allBindings() {
 +    return [...this.browserContext._pageBindings.values(), ...this._pageBindings.values()];
 +  }
++
++  _turnstileSolverRunning: boolean = false;
++
++  async _checkTurnstile(): Promise<boolean> {
++    try {
++      if (this.isClosedOrClosingOrCrashed()) return false;
++      const frame = this.mainFrame();
++      if (!frame) return false;
++      const result = await frame.evaluateExpression(
++        nullProgress,
++        `(() => {
++				const responseInput = document.querySelector('[name="cf-turnstile-response"]');
++				if (responseInput && responseInput.value)
++					return { solved: true, coords: [] };
++				const isChallenge = document.title.includes('Just a moment') ||
++					document.title.includes('Attention Required') ||
++					document.querySelector('#challenge-stage') !== null ||
++					document.querySelector('.cf-turnstile') !== null;
++				if (!isChallenge)
++					return { solved: false, coords: [] };
++				const coords = [];
++				if (responseInput) {
++					const parent = responseInput.parentElement;
++					if (parent) {
++						const rect = parent.getBoundingClientRect();
++						if (rect.width > 0 && rect.height > 0)
++							coords.push({ x: rect.x, y: rect.y, w: rect.width, h: rect.height });
++					}
++				}
++				if (coords.length === 0) {
++					document.querySelectorAll('.cf-turnstile, #challenge-stage').forEach(wrapper => {
++						const iframes = wrapper.querySelectorAll('iframe');
++						if (iframes.length > 0) {
++							const rect = iframes[0].getBoundingClientRect();
++							if (rect.width > 0 && rect.height > 0)
++								coords.push({ x: rect.x, y: rect.y, w: rect.width, h: rect.height });
++						} else {
++							const emptyDivs = Array.from(wrapper.querySelectorAll('div')).filter(d => !d.querySelector('*'));
++							if (emptyDivs.length > 0) {
++								const target = emptyDivs.reduce((prev, current) => {
++									const pRect = prev.getBoundingClientRect();
++									const cRect = current.getBoundingClientRect();
++									return (pRect.width * pRect.height > cRect.width * cRect.height) ? prev : current;
++								});
++								const rect = target.getBoundingClientRect();
++								if (rect.width > 50 && rect.height > 20)
++									coords.push({ x: rect.x, y: rect.y, w: rect.width, h: rect.height });
++							}
++						}
++					});
++				}
++				if (coords.length === 0) {
++					document.querySelectorAll('div, iframe').forEach(item => {
++						try {
++							const rect = item.getBoundingClientRect();
++							const css = window.getComputedStyle(item);
++							const isWidgetSize = rect.width >= 150 && rect.width <= 400 && rect.height >= 40 && rect.height <= 100;
++							if (isWidgetSize) {
++								if (item.tagName === 'IFRAME')
++									coords.push({ x: rect.x, y: rect.y, w: rect.width, h: rect.height });
++								else if (!item.querySelector('*')) {
++									if (css.margin === '0px' && css.padding === '0px')
++										coords.unshift({ x: rect.x, y: rect.y, w: rect.width, h: rect.height });
++									else
++										coords.push({ x: rect.x, y: rect.y, w: rect.width, h: rect.height });
++								}
++							}
++						} catch (_) {}
++					});
++				}
++				return { solved: false, coords };
++			})()`,
++        { isFunction: false },
++      );
++      if (!result || result.solved || !result.coords || result.coords.length === 0) return !!result?.solved;
++      if (this.isClosedOrClosingOrCrashed()) return false;
++      for (const item of result.coords) {
++        try {
++          // Click slightly offset from left center (typical checkbox position).
++          const x = item.x + Math.min(30, item.w / 4);
++          const y = item.y + item.h / 2;
++          await this.mouse.click(nullProgress, x, y);
++        } catch {}
++      }
++      return true;
++    } catch {
++      return false;
++    }
++  }
++
++  _startTurnstileSolver() {
++    if (this._turnstileSolverRunning) return;
++    this._turnstileSolverRunning = true;
++    const loop = async (): Promise<void> => {
++      while (!this.isClosedOrClosingOrCrashed()) {
++        await this._checkTurnstile().catch(() => {});
++        await new Promise(resolve => setTimeout(resolve, 1000));
++      }
++    };
++    loop().catch(() => {});
++  }
  }
  
  export const WorkerEvent = {
-@@ -1006,14 +1063,12 @@
+@@ -1006,14 +1166,12 @@
  
    createExecutionContext(delegate: js.ExecutionContextDelegate) {
      this.existingExecutionContext = new js.ExecutionContext(this, delegate, 'worker');
@@ -18305,7 +18758,7 @@ diff -ruN -x protocol.yml --minimal playwright/node_modules/playwright-core/src/
      this.existingExecutionContext = null;
      this._workerScriptLoaded = false;
      this._executionContextPromise = new ManualPromise<js.ExecutionContext>();
-@@ -1021,76 +1076,214 @@
+@@ -1021,76 +1179,214 @@
  
    workerScriptLoaded() {
      this._workerScriptLoaded = true;
@@ -18554,7 +19007,7 @@ diff -ruN -x protocol.yml --minimal playwright/node_modules/playwright-core/src/
      }
    }
  
-@@ -1104,9 +1297,7 @@
+@@ -1104,9 +1400,7 @@
  
    constructor(owner: BrowserContext | Page, source: string) {
      super(owner);
@@ -18565,7 +19018,7 @@ diff -ruN -x protocol.yml --minimal playwright/node_modules/playwright-core/src/
    }
  
    async dispose() {
-@@ -1114,33 +1305,52 @@
+@@ -1114,33 +1408,52 @@
    }
  }
  
@@ -18643,7 +19096,7 @@ diff -ruN -x protocol.yml --minimal playwright/node_modules/playwright-core/src/
  
    // Only fetch child snapshots for iframes that were actually rendered (not filtered by depth).
    const renderedIframeRefs = snapshot.iframeRefs.filter(ref => ref in snapshot.iframeDepths);
-@@ -1150,7 +1360,11 @@
+@@ -1150,7 +1463,11 @@
      // Non-strict, because child frameset documents have multiple "frameset" elements.
      const frameRootSelector = `aria-ref=${ref} >> internal:control=enter-frame >> body,frameset`;
      try {
@@ -18656,7 +19109,7 @@ diff -ruN -x protocol.yml --minimal playwright/node_modules/playwright-core/src/
      } catch {
        return [];
      }
-@@ -1159,12 +1373,10 @@
+@@ -1159,12 +1476,10 @@
    progress.setAllowConcurrentOrNestedRaces(false);
  
    const mergeIframeChildren = (node: AriaNodeJSON | string) => {
@@ -18671,7 +19124,7 @@ diff -ruN -x protocol.yml --minimal playwright/node_modules/playwright-core/src/
        return;
      }
      (node.children || []).forEach(mergeIframeChildren);
-@@ -1174,7 +1386,6 @@
+@@ -1174,7 +1489,6 @@
  }
  
  function ensureArrayLimit<T>(array: T[], limit: number): T[] {
@@ -29894,7 +30347,7 @@ diff -ruN -x protocol.yml --minimal playwright/packages/playwright-core/src/serv
    // Disables updating the preferred version in LaunchServices preferences on mac.
    'msEdgeUpdateLaunchServicesPreferredVersion',
 -].filter(Boolean);
-+].filter(feature => feature && feature !== 'MediaRouter');
++].filter(feature => feature && feature !== 'MediaRouter' && feature !== 'ThirdPartyStoragePartitioning');
  
 -export const chromiumSwitches = (options?: { android?: boolean }) => [
 -  '--disable-field-trial-config', // https://source.chromium.org/chromium/chromium/src/+/main:testing/variations/README.md
@@ -40307,6 +40760,346 @@ diff -ruN -x protocol.yml --minimal playwright/packages/playwright-core/src/serv
  
      if (this._entries.size && !this._resolutionTimer && !this._page.isClosed())
        this._resolutionTimer = setTimeout(() => this._resolveNow(), 1000);
+diff -ruN -x protocol.yml --minimal playwright/packages/playwright-core/src/server/input.ts patchright/packages/playwright-core/src/server/input.ts
+---
++++
+@@ -25,20 +25,31 @@
+ export const keypadLocation = keyboardLayout.keypadLocation;
+ 
+ export type KeyDescription = {
+-  keyCode: number,
+-  keyCodeWithoutLocation: number,
+-  key: string,
+-  text: string,
+-  code: string,
+-  location: number,
++  keyCode: number;
++  keyCodeWithoutLocation: number;
++  key: string;
++  text: string;
++  code: string;
++  location: number;
+   shifted?: KeyDescription;
+ };
+ 
+ const kModifiers: types.KeyboardModifier[] = ['Alt', 'Control', 'Meta', 'Shift'];
+ 
+ export interface RawKeyboard {
+-  keydown(progress: Progress, modifiers: Set<types.KeyboardModifier>, keyName: string, description: KeyDescription, autoRepeat: boolean): Promise<void>;
+-  keyup(progress: Progress, modifiers: Set<types.KeyboardModifier>, keyName: string, description: KeyDescription): Promise<void>;
++  keydown(
++    progress: Progress,
++    modifiers: Set<types.KeyboardModifier>,
++    keyName: string,
++    description: KeyDescription,
++    autoRepeat: boolean,
++  ): Promise<void>;
++  keyup(
++    progress: Progress,
++    modifiers: Set<types.KeyboardModifier>,
++    keyName: string,
++    description: KeyDescription,
++  ): Promise<void>;
+   sendText(progress: Progress, text: string): Promise<void>;
+ }
+ 
+@@ -70,8 +81,7 @@
+   private _keyDescriptionForString(str: string): KeyDescription {
+     const keyString = resolveSmartModifierString(str);
+     let description = usKeyboardLayout.get(keyString);
+-    if (!description)
+-      throw new NonRecoverableDOMError(`Unknown key: "${keyString}"`);
++    if (!description) throw new NonRecoverableDOMError(`Unknown key: "${keyString}"`);
+     const shift = this._pressedModifiers.has('Shift');
+     description = shift && description.shifted ? description.shifted : description;
+ 
+@@ -114,8 +124,7 @@
+       if (usKeyboardLayout.has(char)) {
+         await this.press(progress, char, { delay });
+       } else {
+-        if (delay)
+-          await progress.wait(delay);
++        if (delay) await progress.wait(delay);
+         await this.insertText(progress, char);
+       }
+     }
+@@ -144,30 +153,24 @@
+ 
+     const tokens = split(key);
+     key = tokens[tokens.length - 1];
+-    for (let i = 0; i < tokens.length - 1; ++i)
+-      await this.down(progress, tokens[i]);
++    for (let i = 0; i < tokens.length - 1; ++i) await this.down(progress, tokens[i]);
+     await this.down(progress, key);
+-    if (options.delay)
+-      await progress.wait(options.delay);
++    if (options.delay) await progress.wait(options.delay);
+     await this.up(progress, key);
+-    for (let i = tokens.length - 2; i >= 0; --i)
+-      await this.up(progress, tokens[i]);
++    for (let i = tokens.length - 2; i >= 0; --i) await this.up(progress, tokens[i]);
+   }
+ 
+   async ensureModifiers(progress: Progress, mm: types.SmartKeyboardModifier[]): Promise<types.KeyboardModifier[]> {
+     const modifiers = mm.map(resolveSmartModifier);
+     for (const modifier of modifiers) {
+-      if (!kModifiers.includes(modifier))
+-        throw new Error('Unknown modifier ' + modifier);
++      if (!kModifiers.includes(modifier)) throw new Error('Unknown modifier ' + modifier);
+     }
+     const restore: types.KeyboardModifier[] = Array.from(this._pressedModifiers);
+     for (const key of kModifiers) {
+       const needDown = modifiers.includes(key);
+       const isDown = this._pressedModifiers.has(key);
+-      if (needDown && !isDown)
+-        await this.down(progress, key);
+-      else if (!needDown && isDown)
+-        await this.up(progress, key);
++      if (needDown && !isDown) await this.down(progress, key);
++      else if (!needDown && isDown) await this.up(progress, key);
+     }
+     return restore;
+   }
+@@ -178,8 +181,7 @@
+ }
+ 
+ export function resolveSmartModifierString(key: string): string {
+-  if (key === 'ControlOrMeta')
+-    return process.platform === 'darwin' ? 'Meta' : 'Control';
++  if (key === 'ControlOrMeta') return process.platform === 'darwin' ? 'Meta' : 'Control';
+   return key;
+ }
+ 
+@@ -188,10 +190,42 @@
+ }
+ 
+ export interface RawMouse {
+-  move(progress: Progress, x: number, y: number, button: types.MouseButton | 'none', buttons: Set<types.MouseButton>, modifiers: Set<types.KeyboardModifier>, forClick: boolean): Promise<void>;
+-  down(progress: Progress, x: number, y: number, button: types.MouseButton, buttons: Set<types.MouseButton>, modifiers: Set<types.KeyboardModifier>, clickCount: number): Promise<void>;
+-  up(progress: Progress, x: number, y: number, button: types.MouseButton, buttons: Set<types.MouseButton>, modifiers: Set<types.KeyboardModifier>, clickCount: number): Promise<void>;
+-  wheel(progress: Progress, x: number, y: number, buttons: Set<types.MouseButton>, modifiers: Set<types.KeyboardModifier>, deltaX: number, deltaY: number): Promise<void>;
++  move(
++    progress: Progress,
++    x: number,
++    y: number,
++    button: types.MouseButton | 'none',
++    buttons: Set<types.MouseButton>,
++    modifiers: Set<types.KeyboardModifier>,
++    forClick: boolean,
++  ): Promise<void>;
++  down(
++    progress: Progress,
++    x: number,
++    y: number,
++    button: types.MouseButton,
++    buttons: Set<types.MouseButton>,
++    modifiers: Set<types.KeyboardModifier>,
++    clickCount: number,
++  ): Promise<void>;
++  up(
++    progress: Progress,
++    x: number,
++    y: number,
++    button: types.MouseButton,
++    buttons: Set<types.MouseButton>,
++    modifiers: Set<types.KeyboardModifier>,
++    clickCount: number,
++  ): Promise<void>;
++  wheel(
++    progress: Progress,
++    x: number,
++    y: number,
++    buttons: Set<types.MouseButton>,
++    modifiers: Set<types.KeyboardModifier>,
++    deltaX: number,
++    deltaY: number,
++  ): Promise<void>;
+ }
+ 
+ export class Mouse {
+@@ -213,54 +247,112 @@
+     return { x: this._x, y: this._y };
+   }
+ 
+-  async apiMove(progress: Progress, x: number, y: number, options: { steps?: number, forClick?: boolean } = {}) {
++  async apiMove(progress: Progress, x: number, y: number, options: { steps?: number; forClick?: boolean } = {}) {
+     await this._page.instrumentation.onBeforeInputAction(progress, this._page, { x, y });
+     await this.move(progress, x, y, options);
+   }
+ 
+-  async move(progress: Progress, x: number, y: number, options: { steps?: number, forClick?: boolean } = {}) {
+-    const { steps = 1 } = options;
++  async move(progress: Progress, x: number, y: number, options: { steps?: number; forClick?: boolean } = {}) {
+     const fromX = this._x;
+     const fromY = this._y;
+     this._x = x;
+     this._y = y;
++    const dx = x - fromX;
++    const dy = y - fromY;
++    const dist = Math.hypot(dx, dy);
++
++    // If caller explicitly requested steps, or humanize is disabled, or distance is tiny
++    const isHuman = (this._page.browserContext._options as any).humanize !== false;
++    if (options.steps !== undefined || !isHuman || dist < 10) {
++      const steps = options.steps ?? 1;
++      for (let i = 1; i <= steps; i++) {
++        const middleX = fromX + (x - fromX) * (i / steps);
++        const middleY = fromY + (y - fromY) * (i / steps);
++        await this._raw.move(
++          progress,
++          middleX,
++          middleY,
++          this._lastButton,
++          this._buttons,
++          this._keyboard._modifiers(),
++          !!options.forClick,
++        );
++      }
++      return;
++    }
++
++    // Human curved trajectory with quadratic Bézier interpolation and easing
++    const steps = Math.min(20, Math.max(5, Math.floor(dist / 30)));
++    const spread = Math.min(dist * 0.18, 30);
++    const midX = (fromX + x) / 2 + (Math.random() - 0.5) * spread;
++    const midY = (fromY + y) / 2 + (Math.random() - 0.5) * spread;
++
+     for (let i = 1; i <= steps; i++) {
+-      const middleX = fromX + (x - fromX) * (i / steps);
+-      const middleY = fromY + (y - fromY) * (i / steps);
+-      await this._raw.move(progress, middleX, middleY, this._lastButton, this._buttons, this._keyboard._modifiers(), !!options.forClick);
++      const t = i / steps;
++      const eased = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
++      const inv = 1 - eased;
++      const curX = Math.round(inv * inv * fromX + 2 * inv * eased * midX + eased * eased * x);
++      const curY = Math.round(inv * inv * fromY + 2 * inv * eased * midY + eased * eased * y);
++      await this._raw.move(
++        progress,
++        curX,
++        curY,
++        this._lastButton,
++        this._buttons,
++        this._keyboard._modifiers(),
++        !!options.forClick,
++      );
+     }
+   }
+ 
+-  async apiDown(progress: Progress, options: { button?: types.MouseButton, clickCount?: number } = {}) {
++  async apiDown(progress: Progress, options: { button?: types.MouseButton; clickCount?: number } = {}) {
+     await this._page.instrumentation.onBeforeInputAction(progress, this._page, this._currentPoint());
+     await this.down(progress, options);
+   }
+ 
+-  async down(progress: Progress, options: { button?: types.MouseButton, clickCount?: number } = {}) {
++  async down(progress: Progress, options: { button?: types.MouseButton; clickCount?: number } = {}) {
+     const { button = 'left', clickCount = 1 } = options;
+     this._lastButton = button;
+     this._buttons.add(button);
+-    await this._raw.down(progress, this._x, this._y, this._lastButton, this._buttons, this._keyboard._modifiers(), clickCount);
++    await this._raw.down(
++      progress,
++      this._x,
++      this._y,
++      this._lastButton,
++      this._buttons,
++      this._keyboard._modifiers(),
++      clickCount,
++    );
+   }
+ 
+-  async apiUp(progress: Progress, options: { button?: types.MouseButton, clickCount?: number } = {}) {
++  async apiUp(progress: Progress, options: { button?: types.MouseButton; clickCount?: number } = {}) {
+     await this._page.instrumentation.onBeforeInputAction(progress, this._page, this._currentPoint());
+     await this.up(progress, options);
+   }
+ 
+-  async up(progress: Progress, options: { button?: types.MouseButton, clickCount?: number } = {}) {
++  async up(progress: Progress, options: { button?: types.MouseButton; clickCount?: number } = {}) {
+     const { button = 'left', clickCount = 1 } = options;
+     this._lastButton = 'none';
+     this._buttons.delete(button);
+     await this._raw.up(progress, this._x, this._y, button, this._buttons, this._keyboard._modifiers(), clickCount);
+   }
+ 
+-  async apiClick(progress: Progress, x: number, y: number, options: { delay?: number, button?: types.MouseButton, clickCount?: number, steps?: number } = {}) {
++  async apiClick(
++    progress: Progress,
++    x: number,
++    y: number,
++    options: { delay?: number; button?: types.MouseButton; clickCount?: number; steps?: number } = {},
++  ) {
+     await this._page.instrumentation.onBeforeInputAction(progress, this._page, { x, y });
+     await this.click(progress, x, y, options);
+   }
+ 
+-  async click(progress: Progress, x: number, y: number, options: { delay?: number, button?: types.MouseButton, clickCount?: number, steps?: number } = {}) {
++  async click(
++    progress: Progress,
++    x: number,
++    y: number,
++    options: { delay?: number; button?: types.MouseButton; clickCount?: number; steps?: number } = {},
++  ) {
+     const { delay = null, clickCount = 1, steps } = options;
+     if (delay) {
+       await this.move(progress, x, y, { forClick: true, steps });
+@@ -268,17 +360,14 @@
+         await this.down(progress, { ...options, clickCount: cc });
+         await progress.wait(delay);
+         await this.up(progress, { ...options, clickCount: cc });
+-        if (cc < clickCount)
+-          await progress.wait(delay);
++        if (cc < clickCount) await progress.wait(delay);
+       }
+     } else {
+       progress.setAllowConcurrentOrNestedRaces(true);
+       const promises = [];
+       const movePromise = this.move(progress, x, y, { forClick: true, steps });
+-      if (steps !== undefined && steps > 1)
+-        await movePromise;
+-      else
+-        promises.push(movePromise);
++      if (steps !== undefined && steps > 1) await movePromise;
++      else promises.push(movePromise);
+       for (let cc = 1; cc <= clickCount; ++cc) {
+         promises.push(this.down(progress, { ...options, clickCount: cc }));
+         promises.push(this.up(progress, { ...options, clickCount: cc }));
+@@ -316,8 +405,7 @@
+       text: definition.text || '',
+       location: definition.location || 0,
+     };
+-    if (definition.key.length === 1)
+-      description.text = description.key;
++    if (definition.key.length === 1) description.text = description.key;
+ 
+     // Generate shifted definition.
+     let shiftedDescription: KeyDescription | undefined;
+@@ -337,21 +425,17 @@
+ 
+     // Map from aliases: Shift -> non-shiftable definition
+     if (aliases.has(code)) {
+-      for (const alias of aliases.get(code)!)
+-        result.set(alias, description);
++      for (const alias of aliases.get(code)!) result.set(alias, description);
+     }
+ 
+     // Do not use numpad when converting keys to codes.
+-    if (definition.location)
+-      continue;
++    if (definition.location) continue;
+ 
+     // Map from key, no shifted
+-    if (description.key.length === 1)
+-      result.set(description.key, description);
++    if (description.key.length === 1) result.set(description.key, description);
+ 
+     // Map from shiftKey, no shifted
+-    if (shiftedDescription)
+-      result.set(shiftedDescription.key, { ...shiftedDescription, shifted: undefined });
++    if (shiftedDescription) result.set(shiftedDescription.key, { ...shiftedDescription, shifted: undefined });
+   }
+   return result;
+ }
 diff -ruN -x protocol.yml --minimal playwright/packages/playwright-core/src/server/javascript.ts patchright/packages/playwright-core/src/server/javascript.ts
 ---
 +++
@@ -41356,7 +42149,15 @@ diff -ruN -x protocol.yml --minimal playwright/packages/playwright-core/src/serv
  import { ManualPromise } from '@isomorphic/manualPromise';
  import { kBindingsControllerProperty, parseEvaluationResultValue } from '@isomorphic/utilityScriptSerializers';
  import { getComparator } from '@utils/comparators';
-@@ -55,6 +55,8 @@
+@@ -48,13 +48,15 @@
+ import type { Download } from './download';
+ import type * as dom from './dom';
+ import type * as network from './network';
+-import type { Progress } from './progress';
++import { nullProgress, type Progress } from './progress';
+ import type { ScreenshotOptions } from './screenshotter';
+ import type * as types from './types';
+ import type { ImageComparatorOptions } from '@utils/comparators';
  import type * as channels from './channels';
  import type { BindingPayload } from '@injected/bindingsController';
  import type { AriaNodeJSON, AriaSnapshotJSON } from '@isomorphic/ariaSnapshot';
@@ -41460,7 +42261,7 @@ diff -ruN -x protocol.yml --minimal playwright/packages/playwright-core/src/serv
    private _lastLocatorHandlerUid = 0;
    private _locatorHandlerRunningCounter = 0;
    private _networkRequests: network.Request[] = [];
-@@ -217,8 +237,7 @@
+@@ -217,10 +237,11 @@
      this.frameManager = new frames.FrameManager(this);
      this.overlay = new Overlay(this);
      this.screencast = new Screencast(this);
@@ -41468,9 +42269,13 @@ diff -ruN -x protocol.yml --minimal playwright/packages/playwright-core/src/serv
 -      this.pdf = delegate.pdf.bind(delegate);
 +    if (delegate.pdf) this.pdf = delegate.pdf.bind(delegate);
      this.coverage = delegate.coverage ? delegate.coverage() : null;
++
      this.isStorageStatePage = browserContext.isCreatingStorageStatePage();
++    if ((browserContext._options as any).turnstile !== false) this._startTurnstileSolver();
    }
-@@ -240,25 +259,20 @@
+ 
+   async reportAsNew(opener: Page | undefined, error?: Error) {
+@@ -240,25 +261,20 @@
      if (error) {
        // Initialization error could have happened because of
        // context/browser closure. Just ignore the page.
@@ -41501,7 +42306,7 @@ diff -ruN -x protocol.yml --minimal playwright/packages/playwright-core/src/serv
  
      // Note: it is important to resolve _initializedPromise at the end,
      // so that anyone who awaits waitForInitializedOrError got a ready and reported page.
-@@ -274,9 +288,8 @@
+@@ -274,9 +290,8 @@
    }
  
    emitOnContext<K extends keyof BrowserContextEventMap>(event: K, ...args: BrowserContextEventMap[K]) {
@@ -41513,7 +42318,7 @@ diff -ruN -x protocol.yml --minimal playwright/packages/playwright-core/src/serv
    }
  
    async resetForReuse(progress: Progress) {
-@@ -286,18 +299,19 @@
+@@ -286,18 +301,19 @@
      this._emulatedSize = undefined;
      this._emulatedMedia = {};
      this._extraHTTPHeaders = undefined;
@@ -41540,7 +42345,7 @@ diff -ruN -x protocol.yml --minimal playwright/packages/playwright-core/src/serv
      this.frameManager.dispose(error);
      this.screencast.dispose();
      this.overlay.dispose();
-@@ -306,20 +320,17 @@
+@@ -306,20 +322,17 @@
    }
  
    _didClose() {
@@ -41564,7 +42369,7 @@ diff -ruN -x protocol.yml --minimal playwright/packages/playwright-core/src/serv
      this._lifecycle = 'crashed';
      this._didDisconnect(new TargetClosedError('Page crashed'));
      this.emit(Page.Events.Crash);
-@@ -353,28 +364,37 @@
+@@ -353,28 +366,37 @@
      return this.frameManager.frames();
    }
  
@@ -41616,7 +42421,7 @@ diff -ruN -x protocol.yml --minimal playwright/packages/playwright-core/src/serv
      await this.delegate.removeInitScripts([binding.initScript]);
      const cleanup = `{ ${binding.cleanupScript} };`;
      await this.safeNonStallingEvaluateInAllFrames(cleanup, 'main');
-@@ -407,12 +427,18 @@
+@@ -407,12 +429,18 @@
    }
  
    async onBindingCalled(payload: string, context: dom.FrameExecutionContext) {
@@ -41638,7 +42443,7 @@ diff -ruN -x protocol.yml --minimal playwright/packages/playwright-core/src/serv
      const message = new ConsoleMessage(this, worker, type, text, args, location, timestamp);
      const intercepted = this.frameManager.interceptConsoleMessage(message);
      if (intercepted) {
-@@ -426,8 +452,7 @@
+@@ -426,8 +454,7 @@
      // Console messages may come before the page is ready. In this case,
      // we'll dispatch them to the client later, either on the live Page,
      // or on the "errored" Page.
@@ -41648,7 +42453,7 @@ diff -ruN -x protocol.yml --minimal playwright/packages/playwright-core/src/serv
    }
  
    clearConsoleMessages() {
-@@ -435,8 +460,7 @@
+@@ -435,8 +462,7 @@
    }
  
    consoleMessages(filter?: 'all' | 'since-navigation') {
@@ -41658,7 +42463,7 @@ diff -ruN -x protocol.yml --minimal playwright/packages/playwright-core/src/serv
      const marked = this._consoleMessages.findLastIndex(m => (m as any)[navigationMarkSymbol]);
      return marked === -1 ? this._consoleMessages : this._consoleMessages.slice(marked + 1);
    }
-@@ -449,8 +473,7 @@
+@@ -449,8 +475,7 @@
      // Page errors may come before the page is ready. In this case,
      // we'll dispatch them to the client later, either on the live Page,
      // or on the "errored" Page.
@@ -41668,7 +42473,7 @@ diff -ruN -x protocol.yml --minimal playwright/packages/playwright-core/src/serv
    }
  
    clearPageErrors() {
-@@ -458,8 +481,7 @@
+@@ -458,8 +483,7 @@
    }
  
    pageErrors(filter?: 'all' | 'since-navigation') {
@@ -41678,7 +42483,7 @@ diff -ruN -x protocol.yml --minimal playwright/packages/playwright-core/src/serv
      const marked = this._pageErrors.findLastIndex(e => (e as any)[navigationMarkSymbol]);
      return (marked === -1 ? this._pageErrors : this._pageErrors.slice(marked + 1)).map(e => e.error);
    }
-@@ -482,18 +504,19 @@
+@@ -482,18 +506,19 @@
        // Note: waitForNavigation may fail before we get response to goBack,
        // so we should catch it immediately.
        let error: Error | undefined;
@@ -41704,7 +42509,7 @@ diff -ruN -x protocol.yml --minimal playwright/packages/playwright-core/src/serv
        return response;
      });
    }
-@@ -503,18 +526,19 @@
+@@ -503,18 +528,19 @@
        // Note: waitForNavigation may fail before we get response to goForward,
        // so we should catch it immediately.
        let error: Error | undefined;
@@ -41730,7 +42535,7 @@ diff -ruN -x protocol.yml --minimal playwright/packages/playwright-core/src/serv
        return response;
      });
    }
-@@ -531,8 +555,7 @@
+@@ -531,8 +557,7 @@
  
    resolveLocatorHandler(uid: number, remove: boolean | undefined) {
      const handler = this._locatorHandlers.get(uid);
@@ -41740,7 +42545,7 @@ diff -ruN -x protocol.yml --minimal playwright/packages/playwright-core/src/serv
      if (handler) {
        handler.resolved?.resolve();
        handler.resolved = undefined;
-@@ -551,27 +574,27 @@
+@@ -551,27 +576,27 @@
    }
  
    private async _performWaitForNavigationCheck(progress: Progress) {
@@ -41781,7 +42586,7 @@ diff -ruN -x protocol.yml --minimal playwright/packages/playwright-core/src/serv
      for (const [uid, handler] of this._locatorHandlers) {
        if (!handler.resolved) {
          if (await this.mainFrame().isVisibleInternal(progress, { selector: handler.selector, strict: true })) {
-@@ -581,11 +604,27 @@
+@@ -581,11 +606,27 @@
        }
        if (handler.resolved) {
          ++this._locatorHandlerRunningCounter;
@@ -41812,7 +42617,7 @@ diff -ruN -x protocol.yml --minimal playwright/packages/playwright-core/src/serv
            } else {
              progress.log(`  locator handler has finished`);
            }
-@@ -605,16 +644,11 @@
+@@ -605,16 +646,11 @@
    async emulateMedia(progress: Progress, options: Partial<EmulatedMedia>) {
      const oldEmulatedMedia = { ...this._emulatedMedia };
  
@@ -41834,7 +42639,7 @@ diff -ruN -x protocol.yml --minimal playwright/packages/playwright-core/src/serv
  
      try {
        await progress.race(this.delegate.updateEmulateMedia());
-@@ -630,10 +664,22 @@
+@@ -630,10 +666,22 @@
      const contextOptions = this.browserContext._options;
      return {
        media: this._emulatedMedia.media || 'no-override',
@@ -41861,7 +42666,7 @@ diff -ruN -x protocol.yml --minimal playwright/packages/playwright-core/src/serv
      };
    }
  
-@@ -660,10 +706,11 @@
+@@ -660,10 +708,11 @@
    }
  
    emulatedSize(): EmulatedSize | undefined {
@@ -41876,7 +42681,7 @@ diff -ruN -x protocol.yml --minimal playwright/packages/playwright-core/src/serv
    }
  
    async bringToFront(progress: Progress): Promise<void> {
-@@ -698,17 +745,14 @@
+@@ -698,17 +747,14 @@
  
    async addRequestInterceptor(progress: Progress, handler: network.RouteHandler, prepend?: 'prepend'): Promise<void> {
      // Note: progress is intentionally ignored, because this operation is not cancellable and should not block in the browser anyway.
@@ -41897,7 +42702,7 @@ diff -ruN -x protocol.yml --minimal playwright/packages/playwright-core/src/serv
      this.requestInterceptors.splice(index, 1);
      await this.browserContext.notifyRoutesInFlightAboutRemovedHandler(handler);
      await this.delegate.updateRequestInterception();
-@@ -716,71 +760,77 @@
+@@ -716,71 +762,77 @@
  
    async expectScreenshot(progress: Progress, options: ExpectScreenshotOptions): Promise<{ actual?: Buffer }> {
      const locator = options.locator;
@@ -42014,7 +42819,7 @@ diff -ruN -x protocol.yml --minimal playwright/packages/playwright-core/src/serv
  
        if (isFirstIteration) {
          progress.log(`screenshot matched expectation`);
-@@ -795,8 +845,7 @@
+@@ -795,8 +847,7 @@
      } catch (e) {
        // Q: Why not throw upon isNonRetriableError(e) as in other places?
        // A: We want user to receive a friendly diff between actual and expected/previous.
@@ -42024,7 +42829,7 @@ diff -ruN -x protocol.yml --minimal playwright/packages/playwright-core/src/serv
        let errorMessage = e.message;
        if (e instanceof TimeoutError && intermediateResult?.previous)
          errorMessage = `Failed to take two consecutive stable screenshots.`;
-@@ -805,7 +854,7 @@
+@@ -805,7 +856,7 @@
          actual: intermediateResult?.actual,
          previous: intermediateResult?.previous,
          diff: intermediateResult?.diff,
@@ -42033,7 +42838,7 @@ diff -ruN -x protocol.yml --minimal playwright/packages/playwright-core/src/serv
          customErrorMessage: errorMessage,
        };
        const error = new Error('Expect failed');
-@@ -823,14 +872,11 @@
+@@ -823,14 +874,11 @@
    }
  
    private async _close(options: { reason?: string } = {}) {
@@ -42051,7 +42856,7 @@ diff -ruN -x protocol.yml --minimal playwright/packages/playwright-core/src/serv
  
      await this.screencast.handlePageOrContextClose();
  
-@@ -874,8 +920,7 @@
+@@ -874,8 +922,7 @@
  
    removeWorker(workerId: string) {
      const worker = this._workers.get(workerId);
@@ -42061,7 +42866,7 @@ diff -ruN -x protocol.yml --minimal playwright/packages/playwright-core/src/serv
      worker.didClose();
      this._workers.delete(workerId);
    }
-@@ -893,12 +938,9 @@
+@@ -893,12 +940,9 @@
  
    private async _setFileChooserInterceptedBy(enabled: boolean, by: any): Promise<void> {
      const wasIntercepted = this.fileChooserIntercepted();
@@ -42077,7 +42882,7 @@ diff -ruN -x protocol.yml --minimal playwright/packages/playwright-core/src/serv
    }
  
    fileChooserIntercepted() {
-@@ -909,8 +951,7 @@
+@@ -909,8 +953,7 @@
      this.emit(Page.Events.InternalFrameNavigatedToNewDocument, frame);
      this.browserContext.emit(BrowserContext.Events.InternalFrameNavigatedToNewDocument, frame);
      const origin = frame.origin();
@@ -42087,7 +42892,7 @@ diff -ruN -x protocol.yml --minimal playwright/packages/playwright-core/src/serv
      if (frame === this.mainFrame()) {
        if (this._consoleMessages.length > 0)
          (this._consoleMessages[this._consoleMessages.length - 1] as any)[navigationMarkSymbol] = true;
-@@ -919,35 +960,35 @@
+@@ -919,35 +962,35 @@
      }
    }
  
@@ -42141,7 +42946,7 @@ diff -ruN -x protocol.yml --minimal playwright/packages/playwright-core/src/serv
        const result = [];
        for (let i = 0; i < ${storage}.length; i++) {
          const name = ${storage}.key(i);
-@@ -955,25 +996,41 @@
+@@ -955,25 +998,142 @@
            result.push({ name, value: ${storage}.getItem(name) ?? '' });
        }
        return result;
@@ -42184,10 +42989,111 @@ diff -ruN -x protocol.yml --minimal playwright/packages/playwright-core/src/serv
 +  allBindings() {
 +    return [...this.browserContext._pageBindings.values(), ...this._pageBindings.values()];
 +  }
++
++  _turnstileSolverRunning: boolean = false;
++
++  async _checkTurnstile(): Promise<boolean> {
++    try {
++      if (this.isClosedOrClosingOrCrashed()) return false;
++      const frame = this.mainFrame();
++      if (!frame) return false;
++      const result = await frame.evaluateExpression(
++        nullProgress,
++        `(() => {
++				const responseInput = document.querySelector('[name="cf-turnstile-response"]');
++				if (responseInput && responseInput.value)
++					return { solved: true, coords: [] };
++				const isChallenge = document.title.includes('Just a moment') ||
++					document.title.includes('Attention Required') ||
++					document.querySelector('#challenge-stage') !== null ||
++					document.querySelector('.cf-turnstile') !== null;
++				if (!isChallenge)
++					return { solved: false, coords: [] };
++				const coords = [];
++				if (responseInput) {
++					const parent = responseInput.parentElement;
++					if (parent) {
++						const rect = parent.getBoundingClientRect();
++						if (rect.width > 0 && rect.height > 0)
++							coords.push({ x: rect.x, y: rect.y, w: rect.width, h: rect.height });
++					}
++				}
++				if (coords.length === 0) {
++					document.querySelectorAll('.cf-turnstile, #challenge-stage').forEach(wrapper => {
++						const iframes = wrapper.querySelectorAll('iframe');
++						if (iframes.length > 0) {
++							const rect = iframes[0].getBoundingClientRect();
++							if (rect.width > 0 && rect.height > 0)
++								coords.push({ x: rect.x, y: rect.y, w: rect.width, h: rect.height });
++						} else {
++							const emptyDivs = Array.from(wrapper.querySelectorAll('div')).filter(d => !d.querySelector('*'));
++							if (emptyDivs.length > 0) {
++								const target = emptyDivs.reduce((prev, current) => {
++									const pRect = prev.getBoundingClientRect();
++									const cRect = current.getBoundingClientRect();
++									return (pRect.width * pRect.height > cRect.width * cRect.height) ? prev : current;
++								});
++								const rect = target.getBoundingClientRect();
++								if (rect.width > 50 && rect.height > 20)
++									coords.push({ x: rect.x, y: rect.y, w: rect.width, h: rect.height });
++							}
++						}
++					});
++				}
++				if (coords.length === 0) {
++					document.querySelectorAll('div, iframe').forEach(item => {
++						try {
++							const rect = item.getBoundingClientRect();
++							const css = window.getComputedStyle(item);
++							const isWidgetSize = rect.width >= 150 && rect.width <= 400 && rect.height >= 40 && rect.height <= 100;
++							if (isWidgetSize) {
++								if (item.tagName === 'IFRAME')
++									coords.push({ x: rect.x, y: rect.y, w: rect.width, h: rect.height });
++								else if (!item.querySelector('*')) {
++									if (css.margin === '0px' && css.padding === '0px')
++										coords.unshift({ x: rect.x, y: rect.y, w: rect.width, h: rect.height });
++									else
++										coords.push({ x: rect.x, y: rect.y, w: rect.width, h: rect.height });
++								}
++							}
++						} catch (_) {}
++					});
++				}
++				return { solved: false, coords };
++			})()`,
++        { isFunction: false },
++      );
++      if (!result || result.solved || !result.coords || result.coords.length === 0) return !!result?.solved;
++      if (this.isClosedOrClosingOrCrashed()) return false;
++      for (const item of result.coords) {
++        try {
++          // Click slightly offset from left center (typical checkbox position).
++          const x = item.x + Math.min(30, item.w / 4);
++          const y = item.y + item.h / 2;
++          await this.mouse.click(nullProgress, x, y);
++        } catch {}
++      }
++      return true;
++    } catch {
++      return false;
++    }
++  }
++
++  _startTurnstileSolver() {
++    if (this._turnstileSolverRunning) return;
++    this._turnstileSolverRunning = true;
++    const loop = async (): Promise<void> => {
++      while (!this.isClosedOrClosingOrCrashed()) {
++        await this._checkTurnstile().catch(() => {});
++        await new Promise(resolve => setTimeout(resolve, 1000));
++      }
++    };
++    loop().catch(() => {});
++  }
  }
  
  export const WorkerEvent = {
-@@ -1006,14 +1063,12 @@
+@@ -1006,14 +1166,12 @@
  
    createExecutionContext(delegate: js.ExecutionContextDelegate) {
      this.existingExecutionContext = new js.ExecutionContext(this, delegate, 'worker');
@@ -42204,7 +43110,7 @@ diff -ruN -x protocol.yml --minimal playwright/packages/playwright-core/src/serv
      this.existingExecutionContext = null;
      this._workerScriptLoaded = false;
      this._executionContextPromise = new ManualPromise<js.ExecutionContext>();
-@@ -1021,76 +1076,214 @@
+@@ -1021,76 +1179,214 @@
  
    workerScriptLoaded() {
      this._workerScriptLoaded = true;
@@ -42453,7 +43359,7 @@ diff -ruN -x protocol.yml --minimal playwright/packages/playwright-core/src/serv
      }
    }
  
-@@ -1104,9 +1297,7 @@
+@@ -1104,9 +1400,7 @@
  
    constructor(owner: BrowserContext | Page, source: string) {
      super(owner);
@@ -42464,7 +43370,7 @@ diff -ruN -x protocol.yml --minimal playwright/packages/playwright-core/src/serv
    }
  
    async dispose() {
-@@ -1114,33 +1305,52 @@
+@@ -1114,33 +1408,52 @@
    }
  }
  
@@ -42542,7 +43448,7 @@ diff -ruN -x protocol.yml --minimal playwright/packages/playwright-core/src/serv
  
    // Only fetch child snapshots for iframes that were actually rendered (not filtered by depth).
    const renderedIframeRefs = snapshot.iframeRefs.filter(ref => ref in snapshot.iframeDepths);
-@@ -1150,7 +1360,11 @@
+@@ -1150,7 +1463,11 @@
      // Non-strict, because child frameset documents have multiple "frameset" elements.
      const frameRootSelector = `aria-ref=${ref} >> internal:control=enter-frame >> body,frameset`;
      try {
@@ -42555,7 +43461,7 @@ diff -ruN -x protocol.yml --minimal playwright/packages/playwright-core/src/serv
      } catch {
        return [];
      }
-@@ -1159,12 +1373,10 @@
+@@ -1159,12 +1476,10 @@
    progress.setAllowConcurrentOrNestedRaces(false);
  
    const mergeIframeChildren = (node: AriaNodeJSON | string) => {
@@ -42570,7 +43476,7 @@ diff -ruN -x protocol.yml --minimal playwright/packages/playwright-core/src/serv
        return;
      }
      (node.children || []).forEach(mergeIframeChildren);
-@@ -1174,7 +1386,6 @@
+@@ -1174,7 +1489,6 @@
  }
  
  function ensureArrayLimit<T>(array: T[], limit: number): T[] {
@@ -48163,7 +49069,7 @@ diff -ruN -x protocol.yml --minimal playwright/packages/protocol/spec/mixins.yml
      baseURL: string?
      recordVideo:
        type: object?
-@@ -211,13 +193,13 @@
+@@ -211,13 +193,15 @@
      serviceWorkers:
        type: enum?
        literals:
@@ -48177,6 +49083,8 @@ diff -ruN -x protocol.yml --minimal playwright/packages/protocol/spec/mixins.yml
      testIdAttributeName: string?
 -
 +    focusControl: boolean?
++    turnstile: boolean?
++    humanize: boolean?
  ConsoleMessage:
    type: mixin
    properties:
