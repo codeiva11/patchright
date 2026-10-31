@@ -148,6 +148,11 @@ patches.patchTurnstile(project);
 patches.patchInput(project);
 
 // ---------------------------------------------
+// server/chromium/crNetworkManager.ts (Adblock)
+// ---------------------------------------------
+patches.patchAdBlocker(project);
+
+// ---------------------------------------------
 // utils/isomorphic/utilityScriptSerializers.ts
 // --------------------------------------------
 patches.patchUtilityScriptSerializers(project);
@@ -268,6 +273,7 @@ await mutateYaml("packages/protocol/spec/mixins.yml", protocol => {
 	protocol.ContextOptions.properties.focusControl = "boolean?";
 	protocol.ContextOptions.properties.turnstile = "boolean?";
 	protocol.ContextOptions.properties.humanize = "boolean?";
+	protocol.ContextOptions.properties.adblocker = "boolean?";
 });
 await mutateYaml("packages/protocol/spec/network.yml", protocol => {
 	protocol.Route.commands.continue.parameters.patchrightInitScript = "boolean?";

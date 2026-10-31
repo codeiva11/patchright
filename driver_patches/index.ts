@@ -1,3 +1,4 @@
+export * from "./adblockerPatch.ts";
 export * from "./browserContextDispatcherPatch.ts";
 export * from "./browserContextPatch.ts";
 export * from "./buildPatch.ts";
