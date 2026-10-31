@@ -80,10 +80,10 @@ jobs:
           cd playwright
           npx playwright install-deps
 
-      - name: Install Chromium and Chrome Browsers
+      - name: Install Chromium Browser
         run: |
           cd playwright
-          npx playwright install chromium chrome
+          npx playwright install chromium
 
       - name: Run Detection Smoke Test
         id: test_detection

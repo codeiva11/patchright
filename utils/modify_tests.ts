@@ -286,6 +286,9 @@ const FIXME_TARGETS: Partial<Record<string, FixmeReasonByTitle>> = {
 	"tests/page/page-drag.spec.ts": new Map([
 		["should work @smoke", "Stealth driver patch: drag dynamics."],
 	]),
+	"tests/page/page-network-sizes.spec.ts": new Map([
+		["should have the correct responseBodySize for chunked request", "Patchright Fetch domain always-on interception alters chunked encoding header size calculation."],
+	]),
 	"tests/page/page-history.spec.ts": new Map([
 		["page.goBack should work for file urls", "Known Patchright bug: Console CDP domain is disabled, so console events/messages are not reliably available."],
 		["regression test for issue 20791", "Known Patchright bug: Console CDP domain is disabled, so console events/messages are not reliably available."],
