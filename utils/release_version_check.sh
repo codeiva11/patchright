@@ -60,8 +60,8 @@ patchright_version=$(get_latest_release "$repo")
 echo "Latest release of the Patchright Driver: $patchright_version"
 echo "previous_playwright_version=$patchright_version" >>"$GITHUB_OUTPUT"
 
-if [ "$playwright_version" = "v0.0.0" ] || [ "$patchright_version" = "v0.0.0" ]; then
-  echo "GitHub API is unavailable; stopping the release version check." >&2
+if [ "$playwright_version" = "v0.0.0" ]; then
+  echo "GitHub API is unavailable for Playwright; stopping the release version check." >&2
   echo "proceed=false" >>"$GITHUB_OUTPUT"
   echo "playwright_version=$playwright_version" >>"$GITHUB_OUTPUT"
   echo "playwright_version=$playwright_version" >>"$GITHUB_ENV"
