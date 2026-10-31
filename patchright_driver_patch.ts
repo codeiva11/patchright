@@ -137,6 +137,11 @@ patches.patchCRPage(project);
 // --------------
 patches.patchPage(project);
 
+// ---------------------------------
+// server/page.ts (Turnstile solver)
+// ---------------------------------
+patches.patchTurnstile(project);
+
 // ---------------------------------------------
 // utils/isomorphic/utilityScriptSerializers.ts
 // --------------------------------------------
@@ -256,6 +261,7 @@ await mutateYaml("packages/protocol/spec/worker.yml", protocol => {
 });
 await mutateYaml("packages/protocol/spec/mixins.yml", protocol => {
 	protocol.ContextOptions.properties.focusControl = "boolean?";
+	protocol.ContextOptions.properties.turnstile = "boolean?";
 });
 await mutateYaml("packages/protocol/spec/network.yml", protocol => {
 	protocol.Route.commands.continue.parameters.patchrightInitScript = "boolean?";

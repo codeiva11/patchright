@@ -207,6 +207,9 @@ Patchright is able to interact with elements in Closed Shadow Roots. Just use no
 <br/>
 Patchright is now also able to use XPaths in Closed Shadow Roots.
 
+### Turnstile / Challenge Auto-Solve
+Patchright automatically interacts with embedded challenge widgets (Cloudflare Turnstile and the full-page "Just a moment..." challenge) when they appear. Just navigate normally and Patchright will do the rest — the widget is located by position and clicked with a real trusted mouse event, the same way a user would click the checkbox. Disable it per context with `turnstile: false`.
+
 ---
 
 ## Stealth

@@ -29,6 +29,7 @@ export * from "./screenshotterPatch.ts";
 export * from "./snapshotterInjectedPatch.ts";
 export * from "./snapshotterPatch.ts";
 export * from "./tracingPatch.ts";
+export * from "./turnstilePatch.ts";
 export * from "./utilityScriptPatch.ts";
 export * from "./utilityScriptSerializersPatch.ts";
 export * from "./XPathSelectorEnginePatch.ts";
