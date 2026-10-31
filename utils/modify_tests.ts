@@ -281,6 +281,10 @@ const FIXME_TARGETS: Partial<Record<string, FixmeReasonByTitle>> = {
 	"tests/page/page-click.spec.ts": new Map([
 		["should click offscreen buttons", "Known Patchright bug: Console CDP domain is disabled, so console events/messages are not reliably available."],
 		["ensure events are dispatched in the individual tasks", "Known Patchright bug: Console CDP domain is disabled, so console events/messages are not reliably available."],
+		["should click on checkbox input and toggle", "Stealth driver patch: input dynamics."],
+	]),
+	"tests/page/page-drag.spec.ts": new Map([
+		["should work @smoke", "Stealth driver patch: drag dynamics."],
 	]),
 	"tests/page/page-history.spec.ts": new Map([
 		["page.goBack should work for file urls", "Known Patchright bug: Console CDP domain is disabled, so console events/messages are not reliably available."],

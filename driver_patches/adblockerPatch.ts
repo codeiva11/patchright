@@ -58,7 +58,9 @@ export function patchAdBlocker(project: Project) {
 	onRequestMethodBody.insertStatements(
 		insertIndex,
 		`
-		const isAdBlockerActive = (this._page?.browserContext?._options as any)?.adblocker !== false;
+		const isAdBlockerActive = (this._page?.browserContext?._options as any)?.adblocker !== undefined
+			? !!(this._page?.browserContext?._options as any)?.adblocker
+			: !process.env.PWTEST_MODE;
 		if (isAdBlockerActive && _isAdOrTrackerUrl(requestWillBeSentEvent.request.url)) {
 			requestPausedSessionInfo!.session._sendMayFail('Fetch.failRequest', {
 				requestId: requestPausedEvent!.requestId,

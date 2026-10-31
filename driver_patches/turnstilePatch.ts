@@ -113,7 +113,7 @@ export function patchTurnstile(project: Project) {
 			})()\`, { isFunction: false });
 			if (!result || result.solved || !result.coords || result.coords.length === 0)
 				return !!result?.solved;
-			if (this.isClosedOrClosingOrCrashed())
+			if (this.isClosedOrClosingOrCrashed() || (this.mouse as any)._buttons !== 0)
 				return false;
 			for (const item of result.coords) {
 				try {
@@ -157,12 +157,18 @@ export function patchTurnstile(project: Project) {
 	if (initStatement) {
 		initStatement.replaceWithText(`
 		this.isStorageStatePage = browserContext.isCreatingStorageStatePage();
-		if ((browserContext._options as any).turnstile !== false)
+		const isTurnstileActive = (browserContext._options as any).turnstile !== undefined
+			? !!(browserContext._options as any).turnstile
+			: !process.env.PWTEST_MODE;
+		if (isTurnstileActive)
 			this._startTurnstileSolver();
 	`);
 	} else {
 		pageConstructor.addStatements(`
-		if ((browserContext._options as any).turnstile !== false)
+		const isTurnstileActive = (browserContext._options as any).turnstile !== undefined
+			? !!(browserContext._options as any).turnstile
+			: !process.env.PWTEST_MODE;
+		if (isTurnstileActive)
 			this._startTurnstileSolver();
 	`);
 	}

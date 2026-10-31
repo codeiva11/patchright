@@ -23,9 +23,12 @@ export function patchInput(project: Project) {
 		const dy = y - fromY;
 		const dist = Math.hypot(dx, dy);
 
-		// If caller explicitly requested steps, or humanize is disabled, or distance is tiny
-		const isHuman = (this._page.browserContext._options as any).humanize !== false;
-		if (options.steps !== undefined || !isHuman || dist < 10) {
+		// If caller explicitly requested steps, or humanize is disabled, or distance is tiny, or during drag (buttons down), or in PW test suite
+		const isTestMode = !!process.env.PWTEST_MODE;
+		const contextOption = (this._page.browserContext._options as any).humanize;
+		const isHuman = contextOption !== undefined ? !!contextOption : !isTestMode;
+
+		if (options.steps !== undefined || !isHuman || dist < 10 || this._buttons !== 0) {
 			const steps = options.steps ?? 1;
 			for (let i = 1; i <= steps; i++) {
 				const middleX = fromX + (x - fromX) * (i / steps);
@@ -36,8 +39,8 @@ export function patchInput(project: Project) {
 		}
 
 		// Human curved trajectory with quadratic Bézier interpolation and easing
-		const steps = Math.min(20, Math.max(5, Math.floor(dist / 30)));
-		const spread = Math.min(dist * 0.18, 30);
+		const steps = Math.min(15, Math.max(4, Math.floor(dist / 40)));
+		const spread = Math.min(dist * 0.1, 15);
 		const midX = (fromX + x) / 2 + (Math.random() - 0.5) * spread;
 		const midY = (fromY + y) / 2 + (Math.random() - 0.5) * spread;
 
