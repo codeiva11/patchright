@@ -107,11 +107,9 @@ jobs:
           cd .. && npm run patch
 
       - name: Generate Playwright Channels
-        # Ignore the error exit code, as the script exits 1 when a file is modified.
-        continue-on-error: true
         run: |
           cd playwright
-          node utils/generate_channels.js
+          node utils/generate_channels.js || true
 
       - name: Build Patchwright Packages
         run: |

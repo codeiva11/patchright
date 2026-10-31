@@ -64,11 +64,9 @@ jobs:
           cd .. && npm run patch
 
       - name: Generate Channels
-        # Script exits 1 when files are modified, which is expected
-        continue-on-error: true
         run: |
           cd playwright
-          node utils/generate_channels.js
+          node utils/generate_channels.js || true
 
       - name: Build Patchright Driver
         run: |
