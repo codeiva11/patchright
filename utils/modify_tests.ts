@@ -359,6 +359,10 @@ const FIXME_TARGETS: Partial<Record<string, FixmeReasonByTitle>> = {
 			"Patchright library tests run through an out-of-process driver, so runtime process.env mutations are not visible to the HAR recorder process.",
 		],
 	]),
+	"tests/library/browsercontext-storage-state.spec.ts": new Map([
+		["should set local storage in third-party context", "Patchwright preserves ThirdPartyStoragePartitioning for stealth anti-bot compliance."],
+		["should roundtrip local storage in third-party context", "Patchwright preserves ThirdPartyStoragePartitioning for stealth anti-bot compliance."],
+	]),
 	"tests/library/browsercontext-events.spec.ts": new Map([
 		["console event should work @smoke", "Known Patchright bug: Console CDP domain is disabled, so console events/messages are not reliably available."],
 		["console event should work with element handles", "Known Patchright bug: Console CDP domain is disabled, so console events/messages are not reliably available."],
