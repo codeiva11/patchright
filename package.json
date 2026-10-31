@@ -1,4 +1,6 @@
 {
+    "name": "patchwrite",
+    "description": "Undetectable Playwright fork with built-in Turnstile solver, adblocker, and human cursor dynamics.",
     "scripts": {
         "patch": "cd playwright && tsx ../patchright_driver_patch.ts",
         "prepatch": "git -C . submodule update --init --recursive patchright-nodejs",

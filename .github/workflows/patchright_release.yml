@@ -1,4 +1,4 @@
-name: Patchright Release Build and Publish
+name: Patchwrite Release Build and Publish
 
 on:
   # enabling manual trigger
@@ -7,8 +7,8 @@ on:
       version:
         description: 'Playwright Version (e.g. v1.64.1 or 1.64.1)'
         default: ''
-      patchright_release:
-        description: 'Patchright Release Version (e.g. v1.64.1 or 1.64.1) on npm'
+      patchwrite_release:
+        description: 'Patchwrite Release Version (e.g. v1.64.1 or 1.64.1) on npm'
         default: ''
   # running daily to check for new Playwright releases
   schedule:
@@ -17,7 +17,7 @@ on:
 env:
   REPO: ${{ github.repository }}
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  patchright_release: ${{ github.event.inputs.patchright_release || '' }}
+  patchwrite_release: ${{ github.event.inputs.patchwrite_release || '' }}
 
 jobs:
   check-release-version:
@@ -118,16 +118,16 @@ jobs:
           cd playwright
           npm run build
 
-      - name: Rebrand Patchright Package
+      - name: Rebrand to Patchwrite
         run: |
           cd playwright
-          npx tsx ../patchright-nodejs/patchright_rebranding.ts
+          npx tsx ../utils/patchwrite_rebranding.ts
 
-      - name: Publish Patchright-Core Package
+      - name: Publish Patchwrite-Core Package
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          cd playwright/packages/patchright-core/
+          cd playwright/packages/patchwrite-core/
           package_name=$(node -p "require('./package.json').name")
           package_version=$(node -p "require('./package.json').version")
 
@@ -137,11 +137,11 @@ jobs:
             npm publish --access=public --provenance
           fi
 
-      - name: Publish Patchright Package
+      - name: Publish Patchwrite Package
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          cd playwright/packages/patchright/
+          cd playwright/packages/patchwrite/
           package_name=$(node -p "require('./package.json').name")
           package_version=$(node -p "require('./package.json').version")
 
