@@ -1,5 +1,5 @@
 {
-    "name": "patchwrite",
+    "name": "patchwright",
     "description": "Undetectable Playwright fork with built-in Turnstile solver, adblocker, and human cursor dynamics.",
     "scripts": {
         "patch": "cd playwright && tsx ../patchright_driver_patch.ts",

@@ -1,5 +1,5 @@
 <h1 align="center">
-    🎭 Patchwrite
+    🎭 Patchwright
 </h1>
 
 

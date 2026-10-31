@@ -1,4 +1,4 @@
-name: Patchwrite Release Build and Publish
+name: Patchwright Release Build and Publish
 
 on:
   # enabling manual trigger
@@ -7,8 +7,8 @@ on:
       version:
         description: 'Playwright Version (e.g. v1.64.1 or 1.64.1)'
         default: ''
-      patchwrite_release:
-        description: 'Patchwrite Release Version (e.g. v1.64.1 or 1.64.1) on npm'
+      patchwright_release:
+        description: 'Patchwright Release Version (e.g. v1.64.1 or 1.64.1) on npm'
         default: ''
   # running daily to check for new Playwright releases
   schedule:
@@ -17,7 +17,7 @@ on:
 env:
   REPO: ${{ github.repository }}
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  patchwrite_release: ${{ github.event.inputs.patchwrite_release || '' }}
+  patchwright_release: ${{ github.event.inputs.patchwright_release || '' }}
 
 jobs:
   check-release-version:
@@ -113,21 +113,21 @@ jobs:
           cd playwright
           node utils/generate_channels.js
 
-      - name: Build Patchright Packages
+      - name: Build Patchwright Packages
         run: |
           cd playwright
           npm run build
 
-      - name: Rebrand to Patchwrite
+      - name: Rebrand to Patchwright
         run: |
           cd playwright
-          npx tsx ../utils/patchwrite_rebranding.ts
+          npx tsx ../utils/patchwright_rebranding.ts
 
-      - name: Publish Patchwrite-Core Package
+      - name: Publish Patchwright-Core Package
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          cd playwright/packages/patchwrite-core/
+          cd playwright/packages/patchwright-core/
           package_name=$(node -p "require('./package.json').name")
           package_version=$(node -p "require('./package.json').version")
 
@@ -137,11 +137,11 @@ jobs:
             npm publish --access=public --provenance
           fi
 
-      - name: Publish Patchwrite Package
+      - name: Publish Patchwright Package
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          cd playwright/packages/patchwrite/
+          cd playwright/packages/patchwright/
           package_name=$(node -p "require('./package.json').name")
           package_version=$(node -p "require('./package.json').version")
 
@@ -151,8 +151,8 @@ jobs:
             npm publish --access=public --provenance
           fi
 
-      - name: Create Patchright Release
-        if: env.patchright_release == '' || needs.check-release-version.outputs.previous_playwright_version != needs.check-release-version.outputs.playwright_version
+      - name: Create Patchwright Release
+        if: env.patchwright_release == '' || needs.check-release-version.outputs.previous_playwright_version != needs.check-release-version.outputs.playwright_version
         env:
           PLAYWRIGHT_VERSION: ${{ needs.check-release-version.outputs.playwright_version }}
         run: |

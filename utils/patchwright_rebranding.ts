@@ -38,8 +38,9 @@ function patchTypesDeclarations(): void {
 
 	const possiblePaths = [
 		"packages/playwright-core/types/types.d.ts",
-		"packages/patchwrite-core/types/types.d.ts",
+		"packages/patchwright-core/types/types.d.ts",
 		"packages/patchright-core/types/types.d.ts",
+		"packages/patchwrite-core/types/types.d.ts",
 	];
 
 	const targetPath = possiblePaths.find(p => fs.existsSync(p));
@@ -89,20 +90,34 @@ function renameImportsAndExportsInDirectory(directoryPath: string): void {
 		sourceFile.getImportDeclarations().forEach(importDecl => {
 			const moduleSpecifierValue = importDecl.getModuleSpecifierValue();
 
-			if (moduleSpecifierValue.startsWith("playwright-core") || moduleSpecifierValue.startsWith("patchright-core")) {
+			if (
+				moduleSpecifierValue.startsWith("playwright-core") ||
+				moduleSpecifierValue.startsWith("patchright-core") ||
+				moduleSpecifierValue.startsWith("patchwrite-core")
+			) {
 				const newModuleSpecifier = moduleSpecifierValue
-					.replace("playwright-core", "patchwrite-core")
-					.replace("patchright-core", "patchwrite-core");
+					.replace("playwright-core", "patchwright-core")
+					.replace("patchright-core", "patchwright-core")
+					.replace("patchwrite-core", "patchwright-core");
 				importDecl.setModuleSpecifier(newModuleSpecifier);
 				modified = true;
-			} else if (moduleSpecifierValue.includes("playwright-core") || moduleSpecifierValue.includes("patchright-core")) {
+			} else if (
+				moduleSpecifierValue.includes("playwright-core") ||
+				moduleSpecifierValue.includes("patchright-core") ||
+				moduleSpecifierValue.includes("patchwrite-core")
+			) {
 				const newModuleSpecifier = moduleSpecifierValue
-					.replace(/playwright-core/g, "patchwrite-core")
-					.replace(/patchright-core/g, "patchwrite-core");
+					.replace(/playwright-core/g, "patchwright-core")
+					.replace(/patchright-core/g, "patchwright-core")
+					.replace(/patchwrite-core/g, "patchwright-core");
 				importDecl.setModuleSpecifier(newModuleSpecifier);
 				modified = true;
-			} else if (moduleSpecifierValue === "playwright" || moduleSpecifierValue === "patchright") {
-				importDecl.setModuleSpecifier("patchwrite");
+			} else if (
+				moduleSpecifierValue === "playwright" ||
+				moduleSpecifierValue === "patchright" ||
+				moduleSpecifierValue === "patchwrite"
+			) {
+				importDecl.setModuleSpecifier("patchwright");
 				modified = true;
 			}
 		});
@@ -110,14 +125,24 @@ function renameImportsAndExportsInDirectory(directoryPath: string): void {
 		sourceFile.getExportDeclarations().forEach(exportDecl => {
 			const moduleSpecifierValue = exportDecl.getModuleSpecifierValue();
 
-			if (moduleSpecifierValue && (moduleSpecifierValue.startsWith("playwright-core") || moduleSpecifierValue.startsWith("patchright-core"))) {
+			if (
+				moduleSpecifierValue &&
+				(moduleSpecifierValue.startsWith("playwright-core") ||
+					moduleSpecifierValue.startsWith("patchright-core") ||
+					moduleSpecifierValue.startsWith("patchwrite-core"))
+			) {
 				const newModuleSpecifier = moduleSpecifierValue
-					.replace("playwright-core", "patchwrite-core")
-					.replace("patchright-core", "patchwrite-core");
+					.replace("playwright-core", "patchwright-core")
+					.replace("patchright-core", "patchwright-core")
+					.replace("patchwrite-core", "patchwright-core");
 				exportDecl.setModuleSpecifier(newModuleSpecifier);
 				modified = true;
-			} else if (moduleSpecifierValue === "playwright" || moduleSpecifierValue === "patchright") {
-				exportDecl.setModuleSpecifier("patchwrite");
+			} else if (
+				moduleSpecifierValue === "playwright" ||
+				moduleSpecifierValue === "patchright" ||
+				moduleSpecifierValue === "patchwrite"
+			) {
+				exportDecl.setModuleSpecifier("patchwright");
 				modified = true;
 			}
 		});
@@ -136,18 +161,28 @@ function renameImportsAndExportsInDirectory(directoryPath: string): void {
 
 			if (args.length) {
 				const argText = args[0].getText();
-				if (argText.includes("playwright-core") || argText.includes("patchright-core")) {
+				if (
+					argText.includes("playwright-core") ||
+					argText.includes("patchright-core") ||
+					argText.includes("patchwrite-core")
+				) {
 					args[0].replaceWithText(
 						argText
-							.replace(/playwright-core/g, "patchwrite-core")
-							.replace(/patchright-core/g, "patchwrite-core"),
+							.replace(/playwright-core/g, "patchwright-core")
+							.replace(/patchright-core/g, "patchwright-core")
+							.replace(/patchwrite-core/g, "patchwright-core"),
 					);
 					modified = true;
-				} else if (argText.includes("playwright") || argText.includes("patchright")) {
+				} else if (
+					argText.includes("playwright") ||
+					argText.includes("patchright") ||
+					argText.includes("patchwrite")
+				) {
 					args[0].replaceWithText(
 						argText
-							.replace(/playwright/g, "patchwrite")
-							.replace(/patchright/g, "patchwrite"),
+							.replace(/playwright/g, "patchwright")
+							.replace(/patchright/g, "patchwright")
+							.replace(/patchwrite/g, "patchwright"),
 					);
 					modified = true;
 				}
@@ -165,43 +200,46 @@ export function patchRebranding(): void {
 	console.log("Applying type declaration patches...");
 	patchTypesDeclarations();
 
-	// Rename packages/playwright-core -> packages/patchwrite-core
-	if (fs.existsSync("packages/playwright-core") && !fs.existsSync("packages/patchwrite-core")) {
-		fs.renameSync("packages/playwright-core", "packages/patchwrite-core");
-		console.log("Renamed packages/playwright-core -> packages/patchwrite-core");
-	} else if (fs.existsSync("packages/patchright-core") && !fs.existsSync("packages/patchwrite-core")) {
-		fs.renameSync("packages/patchright-core", "packages/patchwrite-core");
-		console.log("Renamed packages/patchright-core -> packages/patchwrite-core");
+	// Rename packages/playwright-core -> packages/patchwright-core
+	const coreCandidate = ["packages/playwright-core", "packages/patchright-core", "packages/patchwrite-core"].find(p =>
+		fs.existsSync(p),
+	);
+	if (coreCandidate && !fs.existsSync("packages/patchwright-core")) {
+		fs.renameSync(coreCandidate, "packages/patchwright-core");
+		console.log(`Renamed ${coreCandidate} -> packages/patchwright-core`);
 	}
 
-	// Rename packages/playwright -> packages/patchwrite
-	if (fs.existsSync("packages/playwright") && !fs.existsSync("packages/patchwrite")) {
-		fs.renameSync("packages/playwright", "packages/patchwrite");
-		console.log("Renamed packages/playwright -> packages/patchwrite");
-	} else if (fs.existsSync("packages/patchright") && !fs.existsSync("packages/patchwrite")) {
-		fs.renameSync("packages/patchright", "packages/patchwrite");
-		console.log("Renamed packages/patchright -> packages/patchwrite");
+	// Rename packages/playwright -> packages/patchwright
+	const mainCandidate = ["packages/playwright", "packages/patchright", "packages/patchwrite"].find(p =>
+		fs.existsSync(p),
+	);
+	if (mainCandidate && !fs.existsSync("packages/patchwright")) {
+		fs.renameSync(mainCandidate, "packages/patchwright");
+		console.log(`Renamed ${mainCandidate} -> packages/patchwright`);
 	}
 
 	// Copy README.md
 	if (fs.existsSync("../README.md")) {
 		const readmeData = fs.readFileSync("../README.md", "utf8");
-		fs.writeFileSync("packages/patchwrite/README.md", readmeData, "utf8");
+		fs.writeFileSync("packages/patchwright/README.md", readmeData, "utf8");
 	}
 
-	// Write patchwrite-core README.md
+	// Write patchwright-core README.md
 	fs.writeFileSync(
-		"packages/patchwrite-core/README.md",
-		"# patchwrite-core\n\nThis package contains the no-browser flavor of [Patchwrite](https://github.com/codeiva11/patchright).\n",
+		"packages/patchwright-core/README.md",
+		"# patchwright-core\n\nThis package contains the no-browser flavor of [Patchwright](https://github.com/codeiva11/patchright).\n",
 		"utf8",
 	);
 
-	const releaseVersion = process.env.patchwrite_release || process.env.patchright_release;
+	const releaseVersion =
+		process.env.patchwright_release ||
+		process.env.patchwrite_release ||
+		process.env.patchright_release;
 
-	// Update packages/patchwrite-core/package.json
-	if (fs.existsSync("packages/patchwrite-core/package.json")) {
-		const corePkgJson = JSON.parse(fs.readFileSync("packages/patchwrite-core/package.json", "utf8"));
-		corePkgJson.name = "patchwrite-core";
+	// Update packages/patchwright-core/package.json
+	if (fs.existsSync("packages/patchwright-core/package.json")) {
+		const corePkgJson = JSON.parse(fs.readFileSync("packages/patchwright-core/package.json", "utf8"));
+		corePkgJson.name = "patchwright-core";
 		if (releaseVersion && releaseVersion.trim() !== "") {
 			corePkgJson.version = releaseVersion.replace(/^v/, "");
 		}
@@ -212,16 +250,16 @@ export function patchRebranding(): void {
 			url: "https://github.com/codeiva11/patchright",
 		};
 		corePkgJson.bin = {
-			"patchwrite-core": "cli.js",
+			"patchwright-core": "cli.js",
 		};
-		fs.writeFileSync("packages/patchwrite-core/package.json", JSON.stringify(corePkgJson, null, 4), "utf8");
-		console.log("Updated packages/patchwrite-core/package.json");
+		fs.writeFileSync("packages/patchwright-core/package.json", JSON.stringify(corePkgJson, null, 4), "utf8");
+		console.log("Updated packages/patchwright-core/package.json");
 	}
 
-	// Update packages/patchwrite/package.json
-	if (fs.existsSync("packages/patchwrite/package.json")) {
-		const pkgJson = JSON.parse(fs.readFileSync("packages/patchwrite/package.json", "utf8"));
-		pkgJson.name = "patchwrite";
+	// Update packages/patchwright/package.json
+	if (fs.existsSync("packages/patchwright/package.json")) {
+		const pkgJson = JSON.parse(fs.readFileSync("packages/patchwright/package.json", "utf8"));
+		pkgJson.name = "patchwright";
 		if (releaseVersion && releaseVersion.trim() !== "") {
 			pkgJson.version = releaseVersion.replace(/^v/, "");
 		}
@@ -232,24 +270,27 @@ export function patchRebranding(): void {
 			url: "https://github.com/codeiva11/patchright",
 		};
 		pkgJson.bin = {
-			patchwrite: "cli.js",
+			patchwright: "cli.js",
 		};
 		pkgJson.dependencies = pkgJson.dependencies || {};
-		pkgJson.dependencies["patchwrite-core"] = pkgJson.version;
+		pkgJson.dependencies["patchwright-core"] = pkgJson.version;
 		if (pkgJson.dependencies["patchright-core"]) {
 			delete pkgJson.dependencies["patchright-core"];
+		}
+		if (pkgJson.dependencies["patchwrite-core"]) {
+			delete pkgJson.dependencies["patchwrite-core"];
 		}
 		if (pkgJson.dependencies["playwright-core"]) {
 			delete pkgJson.dependencies["playwright-core"];
 		}
-		fs.writeFileSync("packages/patchwrite/package.json", JSON.stringify(pkgJson, null, 4), "utf8");
-		console.log("Updated packages/patchwrite/package.json");
+		fs.writeFileSync("packages/patchwright/package.json", JSON.stringify(pkgJson, null, 4), "utf8");
+		console.log("Updated packages/patchwright/package.json");
 	}
 
-	// Update imports and exports in packages/patchwrite
-	console.log("Rewriting imports/exports in packages/patchwrite...");
-	renameImportsAndExportsInDirectory("packages/patchwrite");
-	console.log("✅ Rebranding to Patchwrite completed successfully.");
+	// Update imports and exports in packages/patchwright
+	console.log("Rewriting imports/exports in packages/patchwright...");
+	renameImportsAndExportsInDirectory("packages/patchwright");
+	console.log("✅ Rebranding to Patchwright completed successfully.");
 }
 
 patchRebranding();
