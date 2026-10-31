@@ -231,6 +231,25 @@ export function patchRebranding(): void {
 		"utf8",
 	);
 
+	// Remove chrome reinstall helper scripts so package contains only chromium
+	const binCandidateDirs = [
+		"packages/patchwright-core/bin",
+		"packages/playwright-core/bin",
+		"packages/patchwright/bin",
+		"packages/playwright/bin",
+	];
+	for (const bDir of binCandidateDirs) {
+		if (fs.existsSync(bDir)) {
+			const files = fs.readdirSync(bDir);
+			for (const file of files) {
+				if (file.toLowerCase().includes("chrome")) {
+					fs.unlinkSync(path.join(bDir, file));
+					console.log(`Removed Chrome helper script: ${path.join(bDir, file)}`);
+				}
+			}
+		}
+	}
+
 	const releaseVersion =
 		process.env.patchwright_release ||
 		process.env.patchwrite_release ||
@@ -247,7 +266,7 @@ export function patchRebranding(): void {
 		corePkgJson.homepage = "https://github.com/codeiva11/patchright";
 		corePkgJson.repository = {
 			type: "git",
-			url: "https://github.com/codeiva11/patchright",
+			url: "git+https://github.com/codeiva11/patchright.git",
 		};
 		corePkgJson.bin = {
 			"patchwright-core": "cli.js",
@@ -267,7 +286,7 @@ export function patchRebranding(): void {
 		pkgJson.homepage = "https://github.com/codeiva11/patchright";
 		pkgJson.repository = {
 			type: "git",
-			url: "https://github.com/codeiva11/patchright",
+			url: "git+https://github.com/codeiva11/patchright.git",
 		};
 		pkgJson.bin = {
 			patchwright: "cli.js",
