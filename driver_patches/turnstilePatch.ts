@@ -44,12 +44,17 @@ export function patchTurnstile(project: Project) {
 	const checkTurnstileMethod = pageClass.getMethodOrThrow("_checkTurnstile");
 	checkTurnstileMethod.setBodyText(`
 		try {
+			if (this.isClosedOrClosingOrCrashed())
+				return false;
 			const frame = this.mainFrame();
+			if (!frame)
+				return false;
 			const result = await frame.evaluateExpression(nullProgress, \`(() => {
 				const responseInput = document.querySelector('[name="cf-turnstile-response"]');
 				if (responseInput && responseInput.value)
 					return { solved: true, coords: [] };
 				const isChallenge = document.title.includes('Just a moment') ||
+					document.title.includes('Attention Required') ||
 					document.querySelector('#challenge-stage') !== null ||
 					document.querySelector('.cf-turnstile') !== null;
 				if (!isChallenge)
@@ -108,6 +113,8 @@ export function patchTurnstile(project: Project) {
 			})()\`, { isFunction: false });
 			if (!result || result.solved || !result.coords || result.coords.length === 0)
 				return !!result?.solved;
+			if (this.isClosedOrClosingOrCrashed())
+				return false;
 			for (const item of result.coords) {
 				try {
 					// Click slightly offset from left center (typical checkbox position).
@@ -134,7 +141,7 @@ export function patchTurnstile(project: Project) {
 			return;
 		this._turnstileSolverRunning = true;
 		const loop = async (): Promise<void> => {
-			while (!this.isClosed()) {
+			while (!this.isClosedOrClosingOrCrashed()) {
 				await this._checkTurnstile().catch(() => {});
 				await new Promise(resolve => setTimeout(resolve, 1000));
 			}
@@ -144,12 +151,19 @@ export function patchTurnstile(project: Project) {
 
 	// -- Page Constructor: start the solver unless opted out --
 	const pageConstructor = assertDefined(pageClass.getConstructors()[0]);
-	const initStatement = assertDefined(
-		pageConstructor.getStatements().find(statement => statement.getText() === "this.isStorageStatePage = browserContext.isCreatingStorageStatePage();"),
-	);
-	initStatement.replaceWithText(`
+	const initStatement = pageConstructor
+		.getStatements()
+		.find(statement => statement.getText().includes("this.isStorageStatePage"));
+	if (initStatement) {
+		initStatement.replaceWithText(`
 		this.isStorageStatePage = browserContext.isCreatingStorageStatePage();
 		if ((browserContext._options as any).turnstile !== false)
 			this._startTurnstileSolver();
 	`);
+	} else {
+		pageConstructor.addStatements(`
+		if ((browserContext._options as any).turnstile !== false)
+			this._startTurnstileSolver();
+	`);
+	}
 }

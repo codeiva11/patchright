@@ -16,6 +16,7 @@ export * from "./crServiceWorkerPatch.ts";
 export * from "./frameDispatcherPatch.ts";
 export * from "./frameSelectorsPatch.ts";
 export * from "./framesPatch.ts";
+export * from "./inputPatch.ts";
 export * from "./javascriptPatch.ts";
 export * from "./jsHandleDispatcherPatch.ts";
 export * from "./launchAppPatch.ts";

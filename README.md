@@ -210,6 +210,12 @@ Patchright is now also able to use XPaths in Closed Shadow Roots.
 ### Turnstile / Challenge Auto-Solve
 Patchright automatically interacts with embedded challenge widgets (Cloudflare Turnstile and the full-page "Just a moment..." challenge) when they appear. Just navigate normally and Patchright will do the rest — the widget is located by position and clicked with a real trusted mouse event, the same way a user would click the checkbox. Disable it per context with `turnstile: false`.
 
+### Native Storage Partitioning Preservation
+Playwright by default forcibly disables `ThirdPartyStoragePartitioning`, which modern bot-detectors detect immediately via cross-site iframe storage checks. Patchright preserves Chrome's native storage partitioning in the browser switches, ensuring 100% compliance with regular consumer Chrome browsers.
+
+### Human Mouse Trajectory Dynamics
+Robotic single-step cursor jumps are heavily flagged by advanced behavioral bot detectors. Patchright natively calculates smooth quadratic Bézier curved interpolation trajectories with natural acceleration and deceleration easing curves on all mouse movements, hovers, and clicks. Disable per context with `humanize: false`.
+
 ---
 
 ## Stealth
@@ -230,6 +236,7 @@ Patchright passes:
 - [IPHey](https://iphey.com/) ✅
 - [Browserscan](https://browserscan.net/) ✅
 - [Pixelscan](https://pixelscan.net/) ✅
+- [Rebrowser](https://bot-detector.rebrowser.net/) ✅
 
 ---
 

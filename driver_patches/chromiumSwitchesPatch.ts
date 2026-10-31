@@ -9,12 +9,12 @@ export function patchChromiumSwitches(project: Project) {
 		"packages/playwright-core/src/server/chromium/chromiumSwitches.ts",
 	);
 
-	// Keep native Presentation API errors consistent with regular Chrome.
+	// Keep native Presentation API errors consistent with regular Chrome, and preserve native Storage Partitioning.
 	chromiumSwitchesSourceFile
 		.getVariableDeclarationOrThrow("disabledFeatures")
 		.getInitializerIfKindOrThrow(SyntaxKind.CallExpression)
 		.getArguments()[0]
-		.replaceWithText("feature => feature && feature !== 'MediaRouter'");
+		.replaceWithText("feature => feature && feature !== 'MediaRouter' && feature !== 'ThirdPartyStoragePartitioning'");
 
 	// -- chromiumSwitches Array Variable --
 	const chromiumSwitchesArrow = chromiumSwitchesSourceFile
