@@ -330,7 +330,11 @@ const FIXME_TARGETS: Partial<Record<string, FixmeReasonByTitle>> = {
 		["should get post data for file/blob", "Upstream expected-fail now passes in Patchright; keep suite deterministic."],
 		["should get post data for navigator.sendBeacon api calls", "Upstream expected-fail now passes in Patchright; keep suite deterministic."],
 	]),
-	"tests/page/page-expose-function.spec.ts": new Map([["should be callable from-inside addInitScript", "Patchright expose-binding bootstrap can alter init-script timing/order."]]),
+	// NOTE: page-expose-function.spec.ts has NO entry here on purpose: EF-007
+	// ("should be callable from-inside addInitScript") is fixed for real by the
+	// crPagePatch worldName fix (main world name is "" — only auxData.isDefault
+	// marks it — so PageBinding.dispatch's assert(context.world) threw for
+	// binding calls from init scripts). It must RUN in CI, not be skipped.
 	"tests/page/page-evaluate.spec.ts": new Map([
 		["should throw when passed more than one parameter", "Patchright uses third evaluate argument as isolatedContext boolean, changing argument validation semantics."],
 		["should modify global environment", "Patchright evaluate string expressions run in utility context by default; global variable visibility differs."],
@@ -607,7 +611,12 @@ function insertConfiguredFixmes(sourceFile: SourceFile, relativePath: string): n
 			const titleArgument = callExpression.getArguments()[0];
 			const title = titleArgument && asStringLiteralValue(titleArgument);
 			if (!title) continue;
-			reason = reasonsByTitle?.get(title);
+			// Upstream test titles carry an ID prefix ("AT-008 ", "PA-018 ", "EF-007 ", "EV-038 ", ...)
+			// while FIXME_TARGETS keys use the bare title. Without stripping the prefix every
+			// per-title fixme silently misses (proven: CI run 42844817905 and a local dry-run both
+			// report +fixme=0 for page-basic / page-expose-function / page-add-script-tag /
+			// page-evaluate even though all four tests have configured fixmes).
+			reason = reasonsByTitle?.get(title) ?? reasonsByTitle?.get(title.replace(/^[A-Z]{2}-\d+\s+/, ""));
 		}
 		if (reason && insertFixmeInTest(callExpression, reason, getTestBaseName(callExpression))) insertions += 1;
 	}
