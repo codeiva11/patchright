@@ -160,12 +160,16 @@ export function patchCRPage(project: Project) {
 	);
 	// Find the initializer array
 	const promisesInitializer = promisesDeclaration.getInitializerIfKindOrThrow(SyntaxKind.ArrayLiteralExpression);
-	// Find the relevant element inside the array that we need to update
+	// Remove only the Playwright-binding registration from the init
+	// promises (bindings are installed later via the patched _initBinding).
+	// NOTE: Runtime.enable must stay here. Without it the session never
+	// receives Runtime.consoleAPICalled, so no 'console' event reaches the
+	// page — this broke 10+ v1.65.0 page tests (waitForFunction, listeners,
+	// jshandle-to-string, worker interception). Proven by local repro.
 	promisesInitializer
 		.getElements()
 		.filter(
 			element =>
-				element.getText().includes("this._client.send('Runtime.enable'") ||
 				element.getText().includes("this._client.send('Runtime.addBinding', { name: PageBinding.kPlaywrightBinding })"),
 		)
 		.forEach(element => {
@@ -455,13 +459,10 @@ export function patchCRPage(project: Project) {
 		`,
 	);
 
-	// Remove `Runtime.enable` calls
-	const runtimeStatementToRemove = assertDefined(
-		workerInitMethod
-			.getStatements()
-			.find(statement => statement.getText().includes("session._sendMayFail('Runtime.enable');")),
-	);
-	runtimeStatementToRemove.remove();
+	// NOTE: the worker session's Runtime.enable must stay. Without it the
+	// worker never delivers Runtime.consoleAPICalled, so worker console
+	// output never reaches the page (v1.65.0 worker-interception tests
+	// failed on exactly this). Proven by local repro.
 
 	// -- _onBindingCalled Method --
 	const onBindingCalledMethod = frameSessionClass.getMethodOrThrow("_onBindingCalled");
