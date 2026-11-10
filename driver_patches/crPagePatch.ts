@@ -427,12 +427,14 @@ export function patchCRPage(project: Project) {
 		}
 	`);
 
-	// -- _onAttachedToTarget Method --
-	const onAttachedToTargetMethod = frameSessionClass.getMethodOrThrow("_onAttachedToTarget");
-	onAttachedToTargetMethod.setIsAsync(true);
+	// -- _onAttachedToTarget / _initializeWorker Method --
+	// Upstream Playwright moved worker initialization out of _onAttachedToTarget
+	// into a separate _initializeWorker method (v1.65.0). Patch whichever exists.
+	const workerInitMethod = frameSessionClass.getMethod("_initializeWorker") ?? frameSessionClass.getMethodOrThrow("_onAttachedToTarget");
+	workerInitMethod.setIsAsync(true);
 	// Intercept the Runtime.executionContextCreated event to create execution contexts and extract globalThis objectId
 	const sessionOnceCall = assertDefined(
-		onAttachedToTargetMethod
+		workerInitMethod
 			.getDescendantsOfKind(SyntaxKind.ExpressionStatement)
 			.find(statement => statement.getText().includes("session.once('Runtime.executionContextCreated'")),
 	);
@@ -455,7 +457,7 @@ export function patchCRPage(project: Project) {
 
 	// Remove `Runtime.enable` calls
 	const runtimeStatementToRemove = assertDefined(
-		onAttachedToTargetMethod
+		workerInitMethod
 			.getStatements()
 			.find(statement => statement.getText().includes("session._sendMayFail('Runtime.enable');")),
 	);
