@@ -407,7 +407,13 @@ export function patchCRPage(project: Project) {
 				statement.getText().includes("worldName = 'utility'"),
 		)
 		.forEach((statement, index) => {
-			if (index === 0) statement.replaceWithText("let worldName = contextPayload.name;");
+			if (index === 0)
+				// NOTE: contextPayload.name is "" for the main world (only auxData.isDefault marks it),
+				// so a bare `contextPayload.name` leaves worldName falsy for main: frame.contextCreated
+				// never runs for it and PageBinding.dispatch's assert(context.world) throws
+				// "Assertion error" for any binding called from an init script at document start
+				// (EF-007). Restore the isDefault -> 'main' mapping; utility keeps its name.
+				statement.replaceWithText("let worldName = contextPayload.name || (contextPayload.auxData?.isDefault ? 'main' : null);");
 			else statement.remove();
 		});
 	// Guard _contextCreated to only register known worlds ('main' or 'utility')
