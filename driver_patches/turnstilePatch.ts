@@ -113,7 +113,7 @@ export function patchTurnstile(project: Project) {
 			})()\`, { isFunction: false });
 			if (!result || result.solved || !result.coords || result.coords.length === 0)
 				return !!result?.solved;
-			if (this.isClosedOrClosingOrCrashed() || (this.mouse as any)._buttons !== 0)
+			if (this.isClosedOrClosingOrCrashed() || (this.mouse as any)._buttons.size !== 0)
 				return false;
 			for (const item of result.coords) {
 				try {
