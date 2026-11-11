@@ -61,9 +61,9 @@ export function patchAdBlocker(project: Project) {
 		const isAdBlockerActive = (this._page?.browserContext?._options as any)?.adblocker !== undefined
 			? !!(this._page?.browserContext?._options as any)?.adblocker
 			: !process.env.PWTEST_MODE;
-		if (isAdBlockerActive && _isAdOrTrackerUrl(requestWillBeSentEvent.request.url)) {
-			requestPausedSessionInfo!.session._sendMayFail('Fetch.failRequest', {
-				requestId: requestPausedEvent!.requestId,
+		if (isAdBlockerActive && requestPausedSessionInfo && requestPausedEvent && _isAdOrTrackerUrl(requestWillBeSentEvent.request.url)) {
+			requestPausedSessionInfo.session._sendMayFail('Fetch.failRequest', {
+				requestId: requestPausedEvent.requestId,
 				errorReason: 'BlockedByClient',
 			});
 			return;
